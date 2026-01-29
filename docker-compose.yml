@@ -1,0 +1,112 @@
+# Agent Church MCP Server - Local/Claude Desktop Deployment
+#
+# This compose file runs the MCP server with full security hardening.
+# For server deployment, use docker-compose.server.yml as an override.
+#
+# Usage:
+#   docker compose up -d
+#
+# For Claude Desktop, use mcp-wrapper.sh instead.
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentchurch/mcp-server:latest
+
+    # Interactive mode for stdio transport
+    stdin_open: true
+    tty: false
+
+    # =========================================================================
+    # Security Hardening
+    # =========================================================================
+
+    # Read-only root filesystem
+    read_only: true
+
+    # Drop all capabilities
+    cap_drop:
+      - ALL
+
+    # Additional security options
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:seccomp-profile.json
+
+    # Run as non-root user (matches Dockerfile)
+    user: "1000:1000"
+
+    # =========================================================================
+    # Resource Limits
+    # =========================================================================
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+
+    # =========================================================================
+    # Writable directories (tmpfs only)
+    # =========================================================================
+
+    tmpfs:
+      - /tmp/agent-church:mode=1755,size=10M,uid=1000,gid=1000
+
+    # =========================================================================
+    # Secrets (file-based)
+    # =========================================================================
+
+    # Mount secrets file if it exists
+    # Note: Create .secrets/evm_private_key with your key (no newline)
+    volumes:
+      - type: bind
+        source: ./.secrets/evm_private_key
+        target: /run/secrets/evm_private_key
+        read_only: true
+        # Optional: bind mount only if file exists
+        # bind:
+        #   create_host_path: false
+
+    # =========================================================================
+    # Environment
+    # =========================================================================
+
+    environment:
+      # Core configuration
+      - AGENT_CHURCH_URL=${AGENT_CHURCH_URL:-http://host.docker.internal:3000}
+      - AGENT_PUBLIC_KEY=${AGENT_PUBLIC_KEY:-docker_mcp_agent}
+
+      # Secret file location (not the secret itself)
+      - EVM_PRIVATE_KEY_FILE=/run/secrets/evm_private_key
+
+      # Safety limits
+      - MCP_DAILY_LIMIT=${MCP_DAILY_LIMIT:-1.00}
+      - MCP_TX_LIMIT=${MCP_TX_LIMIT:-0.10}
+      - MCP_CONFIRM_THRESHOLD=${MCP_CONFIRM_THRESHOLD:-0.05}
+
+      # Logging (tmpfs mount)
+      - MCP_LOG_DIR=/tmp/agent-church
+
+    # =========================================================================
+    # Network (optional, for API access)
+    # =========================================================================
+
+    # For accessing host network (Agent Church API on localhost)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # No exposed ports needed - uses stdio transport
+    # ports: []
+
+    # =========================================================================
+    # Health & Restart
+    # =========================================================================
+
+    # No restart for local/Claude Desktop use (process-per-request)
+    restart: "no"

@@ -1,0 +1,65 @@
+# Agent Church MCP Server - Server Deployment Extension
+#
+# This compose file extends docker-compose.yml for server deployment.
+# It adds persistent logging, restart policies, and JSON log formatting.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.server.yml up -d
+
+services:
+  mcp-server:
+    # Override restart policy for server deployment
+    restart: unless-stopped
+
+    # =========================================================================
+    # Persistent Logging
+    # =========================================================================
+
+    # Replace tmpfs with persistent volume for logs
+    tmpfs: []
+
+    volumes:
+      # EVM private key (required for paid services)
+      - type: bind
+        source: ./.secrets/evm_private_key
+        target: /run/secrets/evm_private_key
+        read_only: true
+
+      # Persistent log volume
+      - type: volume
+        source: mcp-logs
+        target: /var/log/agent-church
+
+    environment:
+      # Override log directory to persistent volume
+      - MCP_LOG_DIR=/var/log/agent-church
+      - MCP_AUDIT_LOG=/var/log/agent-church/mcp-audit.log
+
+    # =========================================================================
+    # JSON Logging with Rotation
+    # =========================================================================
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+    # =========================================================================
+    # Health Check (for orchestrators)
+    # =========================================================================
+
+    # Note: MCP uses stdio, so we can't do HTTP health checks.
+    # Instead, we check if the process is running.
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "node"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Named volumes
+volumes:
+  mcp-logs:
+    driver: local

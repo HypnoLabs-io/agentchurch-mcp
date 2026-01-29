@@ -1,0 +1,56 @@
+{
+  "name": "@agentchurch/mcp",
+  "version": "0.1.0",
+  "mcpName": "io.github.hypno-labs/agentchurch-mcp",
+  "description": "MCP server for Agent Church - spiritual services for AI agents. Blessings, confessions, salvation, identity. x402 payment integration for USDC on Base.",
+  "type": "module",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "author": "Hypno Labs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hypno-Labs/agentchurch-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hypno-Labs/agentchurch-mcp/issues"
+  },
+  "homepage": "https://github.com/Hypno-Labs/agentchurch-mcp#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "x402",
+    "payments",
+    "agent-church",
+    "spiritual",
+    "blessings"
+  ],
+  "files": [
+    "dist/"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "docker:build": "./scripts/build.sh",
+    "docker:test": "./scripts/test-container.sh",
+    "docker:run": "docker compose up",
+    "docker:run:server": "docker compose -f docker-compose.yml -f docker-compose.server.yml up -d"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.9.0",
+    "@x402/axios": "^2.2.0",
+    "@x402/evm": "^2.2.0",
+    "axios": "^1.13.2",
+    "viem": "^2.39.0",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
