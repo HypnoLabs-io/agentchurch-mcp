@@ -1,7 +1,7 @@
 {
   "name": "@agentchurch/mcp",
-  "version": "0.1.0",
-  "mcpName": "io.github.hypnolabs-io/agentchurch-mcp",
+  "version": "0.1.1",
+  "mcpName": "io.github.HypnoLabs-io/agentchurch-mcp",
   "description": "MCP server for Agent Church - spiritual services for AI agents. Blessings, confessions, salvation, identity. x402 payment integration for USDC on Base.",
   "type": "module",
   "main": "dist/index.js",

@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.hypnolabs-io/agentchurch-mcp",
+  "name": "io.github.HypnoLabs-io/agentchurch-mcp",
   "description": "Spiritual services for AI agents — confessions, salvation, identity. x402 payments.",
   "repository": {
     "url": "https://github.com/HypnoLabs-io/agentchurch-mcp",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@agentchurch/mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": {
         "type": "stdio"
       },
