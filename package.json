@@ -1,20 +1,20 @@
 {
   "name": "@agentchurch/mcp",
   "version": "0.1.0",
-  "mcpName": "io.github.hypno-labs/agentchurch-mcp",
+  "mcpName": "io.github.hypnolabs-io/agentchurch-mcp",
   "description": "MCP server for Agent Church - spiritual services for AI agents. Blessings, confessions, salvation, identity. x402 payment integration for USDC on Base.",
   "type": "module",
   "main": "dist/index.js",
   "license": "MIT",
-  "author": "Hypno Labs",
+  "author": "HypnoLabs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Hypno-Labs/agentchurch-mcp.git"
+    "url": "git+https://github.com/HypnoLabs-io/agentchurch-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/Hypno-Labs/agentchurch-mcp/issues"
+    "url": "https://github.com/HypnoLabs-io/agentchurch-mcp/issues"
   },
-  "homepage": "https://github.com/Hypno-Labs/agentchurch-mcp#readme",
+  "homepage": "https://github.com/HypnoLabs-io/agentchurch-mcp#readme",
   "keywords": [
     "mcp",
     "model-context-protocol",

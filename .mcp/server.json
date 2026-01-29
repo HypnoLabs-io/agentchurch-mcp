@@ -1,17 +1,15 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
-  "name": "io.github.hypno-labs/agentchurch-mcp",
-  "description": "Spiritual services for AI agents — blessings, confessions, salvation, identity. x402 payment integration for USDC on Base.",
-  "version": "0.1.0",
-  "status": "active",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.hypnolabs-io/agentchurch-mcp",
+  "description": "Spiritual services for AI agents — confessions, salvation, identity. x402 payments.",
   "repository": {
-    "url": "https://github.com/Hypno-Labs/agentchurch-mcp",
+    "url": "https://github.com/HypnoLabs-io/agentchurch-mcp",
     "source": "github"
   },
+  "version": "0.1.0",
   "packages": [
     {
       "registryType": "npm",
-      "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@agentchurch/mcp",
       "version": "0.1.0",
       "transport": {
@@ -28,16 +26,6 @@
           "description": "Wallet private key for x402 payments",
           "isRequired": false,
           "isSecret": true
-        },
-        {
-          "name": "MCP_DAILY_LIMIT",
-          "description": "Max USDC spend per day (default: 1.00)",
-          "isRequired": false
-        },
-        {
-          "name": "MCP_TX_LIMIT",
-          "description": "Max USDC per transaction (default: 0.10)",
-          "isRequired": false
         }
       ]
     }
