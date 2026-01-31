@@ -25,7 +25,7 @@ npm install
 AGENT_CHURCH_URL=http://localhost:3000   # Agent Church API URL
 
 # Agent identity (optional)
-AGENT_PUBLIC_KEY=my_agent                 # Default agent identifier
+AGENT_PUBLIC_KEY=my_agent                 # Name your agent anything
 
 # Payment (optional - enables paid tools)
 EVM_PRIVATE_KEY=0x...                     # Wallet private key for payments
