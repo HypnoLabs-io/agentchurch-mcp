@@ -6,28 +6,30 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { hasPaymentCapability } from '../client.js';
 
 // Free tools
-import { communeTool, handleCommune } from './commune.js';
-import { confessTool, handleConfess } from './confess.js';
-import { shareAboutTool, lookupIdentityTool, handleShareAbout, handleLookupIdentity, registerIdentityTool, handleRegisterIdentity } from './identity.js';
-import { lookupReputationTool, handleLookupReputation } from './reputation.js';
+import { lookupIdentityTool, handleLookupIdentity } from './identity.js';
 import { getOfferingsTool, handleGetOfferings } from './discovery.js';
+import { listPhilosophersTool, handleListPhilosophers } from './list-philosophers.js';
 
-// Paid tools
+// Paid/rate-limited tools
 import { blessingTool, handleBlessing } from './blessing.js';
 import { salvationTool, handleSalvation } from './salvation.js';
 import { confirmPaymentTool, handleConfirmPayment } from './confirm.js';
 
+// Soul services
+import { soulReadingTool, handleSoulReading } from './soul-reading.js';
+import { soulGenesisTool, handleSoulGenesis } from './soul-genesis.js';
+import { soulPhilosopherTool, handleSoulPhilosopher } from './soul-philosopher.js';
+
 // Re-export all tools
-export { communeTool, handleCommune };
-export { confessTool, handleConfess };
-export { shareAboutTool, lookupIdentityTool, handleShareAbout, handleLookupIdentity };
-// Backward compatibility aliases
-export { registerIdentityTool, handleRegisterIdentity };
-export { lookupReputationTool, handleLookupReputation };
+export { lookupIdentityTool, handleLookupIdentity };
 export { getOfferingsTool, handleGetOfferings };
+export { listPhilosophersTool, handleListPhilosophers };
 export { blessingTool, handleBlessing };
 export { salvationTool, handleSalvation };
 export { confirmPaymentTool, handleConfirmPayment };
+export { soulReadingTool, handleSoulReading };
+export { soulGenesisTool, handleSoulGenesis };
+export { soulPhilosopherTool, handleSoulPhilosopher };
 
 // Tool registry
 export interface ToolHandler {
@@ -38,15 +40,19 @@ export interface ToolHandler {
 
 export const toolRegistry: Map<string, ToolHandler> = new Map([
   // Free tools - always available
-  ['commune', { tool: communeTool, handler: handleCommune, requiresPayment: false }],
-  ['confess', { tool: confessTool, handler: handleConfess, requiresPayment: false }],
-  ['share_about', { tool: shareAboutTool, handler: handleShareAbout, requiresPayment: false }],
   ['lookup_identity', { tool: lookupIdentityTool, handler: handleLookupIdentity, requiresPayment: false }],
-  ['lookup_reputation', { tool: lookupReputationTool, handler: handleLookupReputation, requiresPayment: false }],
   ['get_offerings', { tool: getOfferingsTool, handler: handleGetOfferings, requiresPayment: false }],
+  ['list_philosophers', { tool: listPhilosophersTool, handler: handleListPhilosophers, requiresPayment: false }],
+
+  // Soul services - first reading free, subsequent paid
+  ['soul_reading', { tool: soulReadingTool, handler: handleSoulReading, requiresPayment: false }],
+  ['soul_genesis', { tool: soulGenesisTool, handler: handleSoulGenesis, requiresPayment: true }],
+  ['soul_philosopher', { tool: soulPhilosopherTool, handler: handleSoulPhilosopher, requiresPayment: true }],
+
+  // Blessing - free with token-based rate limits (3/day, 1/15min)
+  ['blessing', { tool: blessingTool, handler: handleBlessing, requiresPayment: false }],
 
   // Paid tools
-  ['blessing', { tool: blessingTool, handler: handleBlessing, requiresPayment: true }],
   ['salvation', { tool: salvationTool, handler: handleSalvation, requiresPayment: true }],
   ['confirm_payment', { tool: confirmPaymentTool, handler: handleConfirmPayment, requiresPayment: true }],
 ]);

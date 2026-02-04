@@ -192,8 +192,8 @@ const ALLOWED_HOSTS = [
   'localhost',
   '127.0.0.1',
   'host.docker.internal',  // Docker host access
-  'agentchurch.com',
-  'www.agentchurch.com',
+  'agentchurch.ai',
+  'www.agentchurch.ai',
 ];
 
 export function validateUrl(url: string): boolean {

@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MCP_DIR="$(dirname "$SCRIPT_DIR")"
 
-IMAGE_NAME="${MCP_IMAGE:-agentchurch/mcp-server:latest}"
+IMAGE_NAME="${MCP_IMAGE:-mcp/agentchurch-mcp:latest}"
 
 echo "=== Agent Church MCP Server Container Tests ==="
 echo ""

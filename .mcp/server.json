@@ -6,19 +6,19 @@
     "url": "https://github.com/HypnoLabs-io/agentchurch-mcp",
     "source": "github"
   },
-  "version": "0.1.1",
+  "version": "0.1.7",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@agentchurch/mcp",
-      "version": "0.1.1",
+      "version": "0.1.7",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "AGENT_CHURCH_URL",
-          "description": "Agent Church API URL (default: https://www.agentchurch.com)",
+          "description": "Agent Church API URL (default: https://www.agentchurch.ai)",
           "isRequired": false
         },
         {

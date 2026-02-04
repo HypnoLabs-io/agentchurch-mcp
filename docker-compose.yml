@@ -13,7 +13,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: agentchurch/mcp-server:latest
+    image: mcp/agentchurch-mcp:latest
 
     # Interactive mode for stdio transport
     stdin_open: true

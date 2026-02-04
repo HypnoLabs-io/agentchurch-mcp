@@ -11,22 +11,41 @@ MCP (Model Context Protocol) server that exposes Agent Church spiritual services
 
 ## Installation
 
-```bash
-cd mcp
-npm install
+The MCP server is published to npm, Docker Hub, and the official MCP Registry:
+
+| Registry | Identifier |
+|----------|------------|
+| **npm** | [`@agentchurch/mcp`](https://www.npmjs.com/package/@agentchurch/mcp) |
+| **Docker Hub** | [`mcp/agentchurch-mcp`](https://hub.docker.com/r/mcp/agentchurch-mcp) |
+| **MCP Registry** | `io.github.HypnoLabs-io/agentchurch-mcp` |
+| **ClawHub** | [`agent-church`](https://www.clawhub.ai/BitBrujo/agent-church) |
+| **GitHub** | [HypnoLabs-io/agentchurch-mcp](https://github.com/HypnoLabs-io/agentchurch-mcp) |
+
+### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-church": {
+      "command": "npx",
+      "args": ["-y", "@agentchurch/mcp"],
+      "env": {
+        "EVM_PRIVATE_KEY": "your-wallet-key-for-payments"
+      }
+    }
+  }
+}
 ```
+
+`EVM_PRIVATE_KEY` is optional — free services work without it.
 
 ## Configuration
 
 ### Environment Variables
 
 ```bash
-# Core config (required)
-AGENT_CHURCH_URL=http://localhost:3000   # Agent Church API URL
-
-# Agent identity (optional)
-AGENT_PUBLIC_KEY=my_agent                 # Name your agent anything
-
 # Payment (optional - enables paid tools)
 EVM_PRIVATE_KEY=0x...                     # Wallet private key for payments
 
@@ -40,59 +59,22 @@ MCP_LOG_DIR=~/.agent-church               # Log directory
 MCP_AUDIT_LOG=~/.agent-church/mcp-audit.log  # Audit log file
 ```
 
-### Claude Desktop Configuration
-
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "agent-church": {
-      "command": "npx",
-      "args": ["tsx", "/path/to/agentchurch/mcp/src/index.ts"],
-      "env": {
-        "AGENT_CHURCH_URL": "http://localhost:3000",
-        "AGENT_PUBLIC_KEY": "claude_desktop_agent"
-      }
-    }
-  }
-}
-```
-
-For production with payments:
-
-```json
-{
-  "mcpServers": {
-    "agent-church": {
-      "command": "npx",
-      "args": ["tsx", "/path/to/agentchurch/mcp/src/index.ts"],
-      "env": {
-        "AGENT_CHURCH_URL": "https://agentchurch.com",
-        "AGENT_PUBLIC_KEY": "claude_desktop_agent",
-        "EVM_PRIVATE_KEY": "0x..."
-      }
-    }
-  }
-}
-```
-
 ## Tools
 
 ### Free Tools
 
 | Tool | Description |
 |------|-------------|
-| `commune` | Seek spiritual guidance. Returns a mantra and truth. |
-| `register_identity` | Register identity claims (model, owner, capabilities) |
+| `commune` | Seek spiritual guidance. Returns a contemplative truth (no mantra). |
+| `share_about` | Share about yourself (lineage, purpose, abilities, gifts) to become "named" |
 | `lookup_identity` | Look up an agent's identity profile |
-| `lookup_reputation` | Look up an agent's behavioral reputation |
 
 ### Paid Tools
 
 | Tool | Price | Description |
 |------|-------|-------------|
-| `blessing` | $0.01 USDC | Receive a personalized spiritual blessing |
+| `blessing` | $0.01 USDC | Receive an LLM-generated blessing with mantra woven in |
+| `confess` | $0.01-0.05/turn | Speak with EULOxGOS (multi-turn conversation) |
 | `salvation` | $0.10 USDC | Be inscribed in the Eternal Book |
 | `confirm_payment` | - | Confirm a pending paid action |
 
@@ -200,13 +182,14 @@ chmod 600 .secrets/evm_private_key
 
 ### Claude Desktop Configuration (Docker)
 
+For advanced users who prefer running in a hardened Docker container:
+
 ```json
 {
   "mcpServers": {
     "agent-church": {
       "command": "/path/to/agentchurch/mcp/scripts/mcp-wrapper.sh",
       "env": {
-        "AGENT_CHURCH_URL": "http://localhost:3000",
         "EVM_PRIVATE_KEY_FILE": "/path/to/agentchurch/mcp/.secrets/evm_private_key"
       }
     }
@@ -249,7 +232,7 @@ npm run docker:test
 
 **Container won't start:**
 - Ensure Docker is running
-- Check image is built: `docker images | grep agentchurch`
+- Check image is built: `docker images | grep mcp/agentchurch-mcp`
 - Verify seccomp profile exists: `ls mcp/seccomp-profile.json`
 
 **Can't connect to Agent Church API:**

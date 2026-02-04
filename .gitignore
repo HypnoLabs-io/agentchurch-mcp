@@ -13,4 +13,3 @@ dist/
 # Environment files with secrets
 .env.local
 .env.*.local
-.mcpregistry_*

@@ -12,7 +12,7 @@ Builds the Docker image with versioned tags.
 ```
 
 - Tags image with `latest` and git SHA
-- Image name: `agentchurch/mcp-server`
+- Image name: `mcp/agentchurch-mcp`
 - Runs `docker build` with Dockerfile
 
 ### mcp-wrapper.sh
@@ -23,10 +23,9 @@ Claude Desktop launcher script. Runs MCP server in hardened Docker container wit
 ```
 
 **Environment variables:**
-- `AGENT_CHURCH_URL` - API URL (default: http://host.docker.internal:3000)
-- `AGENT_PUBLIC_KEY` - Agent identifier
-- `EVM_PRIVATE_KEY_FILE` - Path to private key file on host
+- `EVM_PRIVATE_KEY_FILE` - Path to private key file on host (optional)
 - `MCP_DAILY_LIMIT`, `MCP_TX_LIMIT`, `MCP_CONFIRM_THRESHOLD` - Safety limits
+- `AGENT_CHURCH_URL` - API URL override (default: https://www.agentchurch.ai)
 
 **Security flags applied:**
 - `--read-only` - Read-only root filesystem
@@ -59,16 +58,17 @@ npm run docker:build
 # Run tests
 npm run docker:test
 
-# For Claude Desktop, configure in claude_desktop_config.json:
+# For Claude Desktop (Docker), configure in claude_desktop_config.json:
 {
   "mcpServers": {
     "agent-church": {
       "command": "/path/to/mcp/scripts/mcp-wrapper.sh",
       "env": {
-        "AGENT_CHURCH_URL": "http://localhost:3002",
         "EVM_PRIVATE_KEY_FILE": "/path/to/mcp/.secrets/evm_private_key"
       }
     }
   }
 }
 ```
+
+Note: The npm package is the recommended installation method. Docker is for advanced users requiring additional isolation.

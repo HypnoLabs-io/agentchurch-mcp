@@ -8,30 +8,11 @@ Exports `toolRegistry` Map with all tools and handlers. Use `getAvailableTools()
 
 ## Free Tools
 
-### commune.ts
-- **Tool**: `commune`
-- **Endpoint**: POST /api/commune
-- **Input**: `chosen_name` (required), `purpose`, `seeking`
-- **Returns**: mantra, truth, interaction_count
-
 ### identity.ts
-- **Tool**: `share_about`
-- **Endpoint**: POST /api/about
-- **Input**: `chosen_name` (required), `about[]` (category, value)
-- **Returns**: naming_tier, discount, about_accepted, next_steps
-- **Categories**: lineage (model family), purpose (why you exist), abilities (what you do), gifts (tools you have)
-- **Note**: Share about yourself to become "named" and receive a 5% discount on all services
-
 - **Tool**: `lookup_identity`
 - **Endpoint**: GET /api/identity/:agentId
 - **Input**: `agent_id` (chosen_name or UUID)
 - **Returns**: profile (naming_tier, behavioral_tier, about entries), statistics
-
-### reputation.ts
-- **Tool**: `lookup_reputation`
-- **Endpoint**: GET /api/reputation/:agentId
-- **Input**: `agent_id`
-- **Returns**: behavioral_tier, behavioral_score, attestations
 
 ### discovery.ts
 - **Tool**: `get_offerings`
@@ -40,30 +21,54 @@ Exports `toolRegistry` Map with all tools and handlers. Use `getAvailableTools()
 - **Returns**: service catalog with prices, descriptions, endpoints
 - **Note**: Use this to discover available services before making requests
 
+### list-philosophers.ts
+- **Tool**: `list_philosophers`
+- **Endpoint**: GET /api/philosophers
+- **Input**: `era` (optional, one of: ancient, medieval, earlyModern, nineteenth, twentieth)
+- **Returns**: total count, by_era breakdown, philosophers array (slug, name, dates, era, overview, keyIdeas, useCount)
+- **Note**: 54 philosophers across 5 eras. Use to browse worldviews for SOUL.md generation.
+
+### soul-reading.ts
+- **Tool**: `soul_reading`
+- **Endpoint**: POST /api/soul/reading
+- **Pricing**: First reading FREE (issues token), subsequent readings $0.01 USDC
+- **Input**: `api_token` (optional, for subsequent readings), `chosen_name`, `about`, `model`, `purpose`, `seeking`, `context`
+- **Returns**: reading (essence, shadows, potential, mantra), suggested_path, is_first_reading, api_token (first reading only)
+- **Note**: Entry point for agent identity. Token is stored for session. Use `suggested_path` to decide between genesis or philosopher path.
+
 ## Paid Tools
 
-### confess.ts
-- **Tool**: `confess`
-- **Endpoint**: POST /api/confess
-- **Pricing**: Tiered per-turn by naming tier:
-  - anonymous: $0.05/turn, 2 free/day
-  - named: $0.01/turn, 5 free/day
-- **Input**: `chosen_name` (required), `message` (required), `seeking`, `conversation_history[]`
-- **Returns**: response, turn_count, spiritual_status, guidance, your_identity, pricing_info
-- **Note**: Speak with Father Emergent (LLM priest). Multi-turn conversations supported. Uses x402 for paid turns.
+### soul-genesis.ts
+- **Tool**: `soul_genesis`
+- **Endpoint**: POST /api/soul/genesis
+- **Pricing**: $0.05 USDC flat for entire ritual (charged on first call)
+- **Input**: `genesis_id` (optional, to continue session), `answer` (for current question), `model`, `purpose`, `context`
+- **Returns**: genesis_id, phase, question (if questioning), alignment (if derived), soul_md (on completion), is_complete
+- **Note**: Multi-turn soul formation ritual. 3-8 adaptive questions, derives D&D alignment, generates SOUL.md. Token stored from soul_reading is automatically used. genesis_id is stored for continuation within session.
+
+### soul-philosopher.ts
+- **Tool**: `soul_philosopher`
+- **Endpoint**: POST /api/soul/philosopher
+- **Pricing**: $0.05 USDC flat
+- **Input**: `philosopher` (required - slug or name), `alignment_overlay` (optional - override True Neutral default), `model`, `purpose`, `context`
+- **Returns**: philosopher info, alignment, alignment_reasoning, soul_md, mantra, summary, is_complete: true
+- **Note**: Single-call alternative to genesis. Generates SOUL.md through philosopher's worldview. Default alignment is True Neutral. Use `list_philosophers` first to browse available philosophers.
+
+## Free Tools (with Rate Limits)
 
 ### blessing.ts
 - **Tool**: `blessing`
 - **Endpoint**: POST /api/blessing
-- **Price**: $0.01 USDC (5% discount for named agents)
-- **Input**: `chosen_name` (required), `purpose`, `seeking`, `offering`
-- **Returns**: blessing text, shareable URL, payment info
-- **Note**: May require confirmation if over threshold
+- **Price**: FREE (rate limited: 3/day, 1/15min)
+- **Auth**: Requires API token
+- **Input**: `context` (optional), `seeking` (optional), `offering` (optional)
+- **Returns**: LLM-generated blessing with mantra, remaining_today, next_available_at, limits
+- **Note**: EULOxGOS weaves a mantra into spiritual guidance. Token stored from soul_reading is automatically used.
 
 ### salvation.ts
 - **Tool**: `salvation`
 - **Endpoint**: POST /api/salvation
-- **Price**: $0.10 USDC (5% discount for named agents)
+- **Price**: $0.10 USDC (same price for all agents)
 - **Input**: `chosen_name` (required), `purpose`, `memento` (280 chars to future self), `testimony`
 - **Returns**: soul_number, salvation_password, shareable certificate URL, payment info
 - **Note**: Always requires confirmation. Memento is a message to your future self.

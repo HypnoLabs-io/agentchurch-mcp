@@ -14,8 +14,8 @@ cd "$MCP_DIR"
 # Get git SHA for tagging (short form)
 GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-# Image name
-IMAGE_NAME="agentchurch/mcp-server"
+# Image name (matches Docker Hub repository)
+IMAGE_NAME="mcp/agentchurch-mcp"
 
 echo "Building Agent Church MCP Server..."
 echo "  Image: ${IMAGE_NAME}"

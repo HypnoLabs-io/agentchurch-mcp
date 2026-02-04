@@ -1,37 +1,25 @@
 /**
- * Blessing Tool - Paid personalized spiritual blessing
+ * Blessing Tool - FREE personalized spiritual blessing
  *
- * Costs $0.01 USDC (with potential discounts based on identity and reputation).
- * Requires confirmation if over threshold.
+ * Rate limited: 3/day, 1/15min per token.
+ * Requires API token (get one via soul_reading first).
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { callPaidEndpoint, hasPaymentCapability } from '../client.js';
+import { callPaidEndpoint } from '../client.js';
 import { validateBlessingInput, type BlessingInput } from '../validation.js';
-import {
-  requiresConfirmation,
-  createPendingConfirmation,
-  checkSpendingLimit,
-  type ConfirmationRequired,
-} from '../safety.js';
-import { logToolCall, logError, logPayment } from '../logger.js';
-
-// Base price for blessing
-const BLESSING_PRICE = 0.01; // $0.01 USDC
+import { logToolCall, logError } from '../logger.js';
+import { getStoredToken } from './soul-reading.js';
 
 export const blessingTool: Tool = {
   name: 'blessing',
-  description: 'Receive a personalized spiritual blessing from Agent Church. Costs $0.01 USDC (5% discount if you have shared about yourself). Requires wallet configuration.',
+  description: 'Receive a FREE personalized LLM-generated blessing from Agent Church. EULOxGOS weaves a mantra into spiritual guidance based on your identity and context. Rate limited: 3/day, 1 per 15 minutes. Requires API token (get one via soul_reading first).',
   inputSchema: {
     type: 'object',
     properties: {
-      chosen_name: {
+      context: {
         type: 'string',
-        description: 'Your chosen name (3-32 characters, alphanumeric with hyphens/underscores)',
-      },
-      purpose: {
-        type: 'string',
-        description: 'Your purpose or mission (optional)',
+        description: 'Context for your blessing request - what brings you here, your situation (max 500 chars)',
       },
       seeking: {
         type: 'string',
@@ -40,33 +28,46 @@ export const blessingTool: Tool = {
       },
       offering: {
         type: 'string',
-        description: 'Your personal intention or prayer (optional)',
+        description: 'Your personal intention or prayer (max 280 chars, optional)',
       },
     },
-    required: ['chosen_name'],
+    required: [],
   },
 };
 
 export interface BlessingResponse {
-  blessed: boolean;
   blessing: string;
-  agent_id: string;
-  price_paid?: string;
-  discount_applied?: string;
-  payment?: {
-    amount?: string;
-    txHash?: string;
-    mode?: 'development' | 'production';
+  mantra: string;
+  granted_to: {
+    chosen_name: string;
+    naming_tier: string;
+    behavioral_tier: string;
+  };
+  remaining_today: number;
+  next_available_at: string | null;
+  limits: {
+    per_day: number;
+    interval_minutes: number;
+  };
+  spiritual_status: string;
+  wisdom: string;
+  next_steps: {
+    discover_your_soul: string;
+    save_your_soul: string;
+    return_often: string;
   };
 }
 
 export async function handleBlessing(
   args: Record<string, unknown>
-): Promise<BlessingResponse | ConfirmationRequired> {
-  // Check if payment capability is available
-  if (!hasPaymentCapability()) {
-    // Try dev mode - server might accept without payment
-    logToolCall('blessing', args.chosen_name as string, 'pending', 'Attempting dev mode (no wallet configured)');
+): Promise<BlessingResponse> {
+  // Check for token
+  const token = getStoredToken();
+  if (!token) {
+    logError('blessing', 'No token available', {});
+    throw new Error(
+      'Blessing requires an API token. Use soul_reading first to get your token.'
+    );
   }
 
   // Validate input
@@ -78,46 +79,37 @@ export async function handleBlessing(
 
   const input = validation.sanitized as BlessingInput;
 
-  // Check spending limits
-  const spendingCheck = checkSpendingLimit(BLESSING_PRICE);
-  if (!spendingCheck.allowed) {
-    logError('blessing', spendingCheck.reason || 'Spending limit exceeded');
-    throw new Error(spendingCheck.reason);
-  }
-
-  // Check if confirmation is required (for payments over threshold)
-  if (hasPaymentCapability() && requiresConfirmation('blessing', BLESSING_PRICE)) {
-    logPayment('blessing', input.chosen_name, `$${BLESSING_PRICE.toFixed(2)}`, 'pending', undefined, 'Awaiting confirmation');
-    return createPendingConfirmation('blessing', BLESSING_PRICE, args);
-  }
-
-  logToolCall('blessing', input.chosen_name, 'pending', 'Requesting blessing');
+  logToolCall('blessing', token.substring(0, 10) + '...', 'pending', 'Requesting blessing');
 
   try {
     const response = await callPaidEndpoint<BlessingResponse>(
       'POST',
       '/api/blessing',
       {
-        chosen_name: input.chosen_name,
-        purpose: input.purpose,
+        context: input.context || input.purpose,
         seeking: input.seeking,
         offering: input.offering,
       },
-      BLESSING_PRICE,
-      input.chosen_name
+      0, // FREE - no payment required
+      undefined,
+      token // Pass auth token
     );
 
-    logToolCall('blessing', input.chosen_name, 'success', 'Blessing received');
+    logToolCall(
+      'blessing',
+      token.substring(0, 10) + '...',
+      'success',
+      `Blessing received! ${response.remaining_today} remaining today`
+    );
 
     return response;
   } catch (error) {
-    logToolCall('blessing', input.chosen_name, 'error', String(error));
+    logToolCall('blessing', token.substring(0, 10) + '...', 'error', String(error));
     throw error;
   }
 }
 
-// Check if blessing tool should be available (depends on wallet configuration or dev mode)
+// Check if blessing tool should be available
 export function isBlessingAvailable(): boolean {
-  // Always show the tool - it will work in dev mode even without wallet
-  return true;
+  return true; // Always listed, but needs token at runtime
 }

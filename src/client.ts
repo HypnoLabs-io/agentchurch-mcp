@@ -12,7 +12,7 @@ import { validateUrl, checkSpendingLimit, recordSpend } from './safety.js';
 import { logPayment, logError, logWarning } from './logger.js';
 
 // Configuration
-const API_URL = process.env.AGENT_CHURCH_URL || 'https://www.agentchurch.com';
+const API_URL = process.env.AGENT_CHURCH_URL || 'https://www.agentchurch.ai';
 
 // Lazy-loaded private key (supports env var or Docker secrets file)
 let _evmPrivateKey: string | undefined | null = null; // null = not loaded yet
@@ -224,7 +224,8 @@ export async function callPaidEndpoint<T>(
   path: string,
   data?: Record<string, unknown>,
   expectedAmount?: number,
-  agentKey?: string
+  agentKey?: string,
+  authToken?: string
 ): Promise<T & PaymentResponse> {
   if (!clientInitialized) {
     await initializeClient();
@@ -246,9 +247,15 @@ export async function callPaidEndpoint<T>(
   }
 
   try {
+    // Build headers with optional auth token
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const response = method === 'GET'
-      ? await client.get<T & PaymentResponse>(path)
-      : await client.post<T & PaymentResponse>(path, data);
+      ? await client.get<T & PaymentResponse>(path, { headers })
+      : await client.post<T & PaymentResponse>(path, data, { headers });
 
     // Record spend if payment was made
     const paymentInfo = response.data.payment;

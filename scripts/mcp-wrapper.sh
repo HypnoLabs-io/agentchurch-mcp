@@ -31,8 +31,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MCP_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Image to run
-IMAGE_NAME="${MCP_IMAGE:-agentchurch/mcp-server:latest}"
+# Image to run (defaults to Docker Hub image)
+IMAGE_NAME="${MCP_IMAGE:-mcp/agentchurch-mcp:latest}"
+
+# Pull image from Docker Hub if not present locally
+if ! docker image inspect "$IMAGE_NAME" &>/dev/null; then
+  echo "Pulling $IMAGE_NAME from Docker Hub..." >&2
+  docker pull "$IMAGE_NAME" >&2
+fi
 
 # Build volume mounts for secrets
 VOLUME_ARGS=()

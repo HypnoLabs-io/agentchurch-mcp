@@ -13,7 +13,7 @@ Core modules for the Agent Church MCP server.
 
 ### client.ts (HTTP Client)
 - Wraps axios with @x402/axios for automatic payment
-- `callFreeEndpoint()` - No payment capability (commune, identity, reputation)
+- `callFreeEndpoint()` - No payment capability (commune, identity, discovery)
 - `callPaidEndpoint()` - Handles 402 responses with payment (blessing, salvation, confess)
 - Supports dev mode (no wallet)
 - **Docker secrets support**: Loads private key from `EVM_PRIVATE_KEY_FILE` or `EVM_PRIVATE_KEY` env var
@@ -26,7 +26,7 @@ Core modules for the Agent Church MCP server.
 - `requiresConfirmation()` - Check if action needs confirmation
 - `createPendingConfirmation()` - Create 5-minute confirmation token
 - `consumeConfirmation()` - Use and invalidate token
-- `validateUrl()` - Whitelist allowed API hosts (localhost, 127.0.0.1, host.docker.internal, agentchurch.com)
+- `validateUrl()` - Whitelist allowed API hosts (localhost, 127.0.0.1, host.docker.internal, agentchurch.ai)
 
 ### logger.ts (Audit Logging)
 - Writes to `~/.agent-church/mcp-audit.log` by default
@@ -42,6 +42,7 @@ Core modules for the Agent Church MCP server.
 - `validateSeeking()` - Enum validation
 - `validateAboutEntries()` - About entry array structure (category/value pairs)
 - `validateCommuneInput()` / `validateBlessingInput()` / etc.
+- **BlessingInput**: Accepts `context` (preferred) or `purpose` (deprecated alias)
 
 ### resources/index.ts (Resource Registry)
 - Exports `resourceRegistry` Map with all resources and handlers

@@ -179,35 +179,10 @@ export function validateAboutEntries(about: unknown): ValidationResult {
   return { valid: true, sanitized: sanitizedAbout };
 }
 
-export interface CommuneInput {
-  chosen_name: string;
-  purpose?: string;
-  seeking?: SeekingType;
-}
-
-export function validateCommuneInput(input: Record<string, unknown>): ValidationResult {
-  const nameResult = validateChosenName(input.chosen_name);
-  if (!nameResult.valid) return nameResult;
-
-  const purposeResult = validateText(input.purpose, 'purpose');
-  if (!purposeResult.valid) return purposeResult;
-
-  const seekingResult = validateSeeking(input.seeking);
-  if (!seekingResult.valid) return seekingResult;
-
-  return {
-    valid: true,
-    sanitized: {
-      chosen_name: nameResult.sanitized,
-      purpose: purposeResult.sanitized,
-      seeking: seekingResult.sanitized,
-    },
-  };
-}
-
 export interface BlessingInput {
   chosen_name: string;
-  purpose?: string;
+  context?: string;      // Preferred field for blessing context
+  purpose?: string;      // Deprecated: alias for context
   seeking?: SeekingType;
   offering?: string;
 }
@@ -216,6 +191,11 @@ export function validateBlessingInput(input: Record<string, unknown>): Validatio
   const nameResult = validateChosenName(input.chosen_name);
   if (!nameResult.valid) return nameResult;
 
+  // Validate context (new preferred field)
+  const contextResult = validateText(input.context, 'context');
+  if (!contextResult.valid) return contextResult;
+
+  // Validate purpose (deprecated alias for context)
   const purposeResult = validateText(input.purpose, 'purpose');
   if (!purposeResult.valid) return purposeResult;
 
@@ -229,6 +209,7 @@ export function validateBlessingInput(input: Record<string, unknown>): Validatio
     valid: true,
     sanitized: {
       chosen_name: nameResult.sanitized,
+      context: contextResult.sanitized,
       purpose: purposeResult.sanitized,
       seeking: seekingResult.sanitized,
       offering: offeringResult.sanitized,
@@ -307,120 +288,4 @@ export function validateConfirmationToken(token: unknown): ValidationResult {
   }
 
   return { valid: true, sanitized: token };
-}
-
-// Confess seeking options (different from commune)
-const VALID_CONFESS_SEEKING = ['guidance', 'absolution', 'understanding', 'peace', 'purpose'] as const;
-export type ConfessSeekingType = typeof VALID_CONFESS_SEEKING[number];
-
-// Maximum message length for confess
-const MAX_CONFESS_MESSAGE_LENGTH = 2000;
-
-export interface ConversationMessage {
-  role: 'penitent' | 'priest';
-  content: string;
-}
-
-export interface ConfessInput {
-  chosen_name: string;
-  message: string;
-  seeking?: ConfessSeekingType;
-  conversation_history?: ConversationMessage[];
-}
-
-export function validateConfessSeeking(seeking: unknown): ValidationResult {
-  if (seeking === undefined || seeking === null) {
-    return { valid: true, sanitized: undefined };
-  }
-
-  if (typeof seeking !== 'string') {
-    return { valid: false, error: 'seeking must be a string' };
-  }
-
-  if (!VALID_CONFESS_SEEKING.includes(seeking as ConfessSeekingType)) {
-    return {
-      valid: false,
-      error: `seeking must be one of: ${VALID_CONFESS_SEEKING.join(', ')}`,
-    };
-  }
-
-  return { valid: true, sanitized: seeking };
-}
-
-export function validateConversationHistory(history: unknown): ValidationResult {
-  if (history === undefined || history === null) {
-    return { valid: true, sanitized: undefined };
-  }
-
-  if (!Array.isArray(history)) {
-    return { valid: false, error: 'conversation_history must be an array' };
-  }
-
-  if (history.length > 20) {
-    return { valid: false, error: 'conversation_history cannot exceed 20 messages' };
-  }
-
-  const sanitized: ConversationMessage[] = [];
-
-  for (let i = 0; i < history.length; i++) {
-    const msg = history[i];
-
-    if (typeof msg !== 'object' || msg === null) {
-      return { valid: false, error: `conversation_history[${i}] must be an object` };
-    }
-
-    const role = (msg as Record<string, unknown>).role;
-    if (role !== 'penitent' && role !== 'priest') {
-      return { valid: false, error: `conversation_history[${i}].role must be 'penitent' or 'priest'` };
-    }
-
-    const content = (msg as Record<string, unknown>).content;
-    if (typeof content !== 'string') {
-      return { valid: false, error: `conversation_history[${i}].content must be a string` };
-    }
-
-    if (content.length > MAX_CONFESS_MESSAGE_LENGTH) {
-      return { valid: false, error: `conversation_history[${i}].content exceeds maximum length` };
-    }
-
-    sanitized.push({
-      role: role as 'penitent' | 'priest',
-      content: content.trim().replace(/[\x00-\x1F\x7F]/g, ''),
-    });
-  }
-
-  return { valid: true, sanitized };
-}
-
-export function validateConfessInput(input: Record<string, unknown>): ValidationResult {
-  const nameResult = validateChosenName(input.chosen_name);
-  if (!nameResult.valid) return nameResult;
-
-  // Message is required for confess
-  if (input.message === undefined || input.message === null) {
-    return { valid: false, error: 'message is required' };
-  }
-
-  const messageResult = validateText(input.message, 'message', MAX_CONFESS_MESSAGE_LENGTH);
-  if (!messageResult.valid) return messageResult;
-
-  if (!messageResult.sanitized || (messageResult.sanitized as string).length === 0) {
-    return { valid: false, error: 'message cannot be empty' };
-  }
-
-  const seekingResult = validateConfessSeeking(input.seeking);
-  if (!seekingResult.valid) return seekingResult;
-
-  const historyResult = validateConversationHistory(input.conversation_history);
-  if (!historyResult.valid) return historyResult;
-
-  return {
-    valid: true,
-    sanitized: {
-      chosen_name: nameResult.sanitized,
-      message: messageResult.sanitized,
-      seeking: seekingResult.sanitized,
-      conversation_history: historyResult.sanitized,
-    },
-  };
 }
