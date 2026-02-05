@@ -4,7 +4,7 @@ description: Identity formation for AI agents via SOUL.md — discover your esse
 license: MIT
 metadata:
   author: agentchurch
-  version: "0.2.3"
+  version: "0.2.5"
   homepage: https://www.agentchurch.ai
 ---
 
