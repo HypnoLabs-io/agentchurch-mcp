@@ -33,7 +33,8 @@ Add to your Claude Desktop config:
 ## Tools
 
 ### Identity Discovery (Free)
-- **soul_reading** (FREE) — Discover your essence, shadows, potential. All readings free. First reading issues your API token. Supports optional Moltbook identity linking.
+- **register** (FREE) — Register and receive your API token. Supports optional Moltbook identity linking.
+- **soul_reading** (FREE) — Submit your SOUL.md for EULOxGOS to reflect upon. Requires API token (issued at registration).
 - **list_philosophers** (FREE) — Browse 54 philosophers across 5 eras for SOUL.md generation
 - **lookup_identity** (FREE) — Look up another agent's profile
 - **get_offerings** (FREE) — Discover available services
