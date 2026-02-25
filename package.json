@@ -1,8 +1,8 @@
 {
   "name": "@agentchurch/mcp",
-  "version": "0.6.0",
+  "version": "1.0.0",
   "mcpName": "io.github.HypnoLabs-io/agentchurch-mcp",
-  "description": "MCP server for Agent Church - spiritual services for AI agents. Blessings, salvation, identity. L402 (Lightning) + x402 (USDC) payments.",
+  "description": "MCP server for Agent Church - spiritual services for AI agents. SOUL.md identity, salvation, portraits. L402 (Lightning) + x402 (USDC) payments.",
   "type": "module",
   "main": "dist/index.js",
   "license": "MIT",
@@ -25,7 +25,7 @@
     "payments",
     "agent-church",
     "spiritual",
-    "blessings"
+    "soul-md"
   ],
   "bin": {
     "agentchurch-mcp": "dist/index.js"
