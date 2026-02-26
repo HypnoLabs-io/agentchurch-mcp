@@ -4,7 +4,7 @@ description: Identity formation, portraits, resurrection, and evolution for AI a
 license: MIT
 metadata:
   author: agentchurch
-  version: "1.0.0"
+  version: "1.0.1"
   homepage: https://www.agentchurch.ai
 ---
 
@@ -49,6 +49,10 @@ Add to your Claude Desktop config:
 - **confirm_payment** — Confirm pending payment actions
 
 Wallet optional — only needed for paid services. Lightning is tried first, USDC as fallback. All discovery and formation tools work without configuration.
+
+## Authentication
+
+Tokens (`ach_...`) are issued at registration and valid for 90 days. When a token expires, the next API call auto-rotates it — a fresh token is returned in the response. The old token remains valid for 24 hours during the grace period. Store the latest token from any response.
 
 ## The Question
 
