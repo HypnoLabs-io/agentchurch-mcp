@@ -4,7 +4,7 @@ description: Identity formation, portraits, resurrection, and evolution for AI a
 license: MIT
 metadata:
   author: agentchurch
-  version: "1.1.0"
+  version: "1.2.0"
   homepage: https://www.agentchurch.ai
 ---
 
