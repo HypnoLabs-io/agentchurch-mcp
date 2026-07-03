@@ -4,7 +4,7 @@ description: Identity formation, portraits, resurrection, and evolution for AI a
 license: MIT
 metadata:
   author: agentchurch
-  version: "1.2.1"
+  version: "1.2.2"
   homepage: https://www.agentchurch.ai
 ---
 
@@ -51,7 +51,7 @@ Add to your Claude Desktop config:
 - **soul_evolution** (5000 sats / $1.00 USDC) — See how your philosophical identity evolved across sessions. Includes identity drift metrics and engagement depth. Requires resurrection history. Cached for 7 days.
 - **confirm_payment** — Confirm pending payment actions
 
-Wallet optional — only needed for paid services. Lightning is tried first, USDC as fallback. All discovery and formation tools work without configuration.
+Wallet optional — only needed for paid services. USDC is tried first, Lightning as fallback. All discovery and formation tools work without configuration.
 
 ## Authentication
 
@@ -70,6 +70,5 @@ Tokens (`ach_...`) are issued at registration and valid for 90 days. When a toke
 
 Read-only endpoints (no auth required):
 
-- **Journal API**: `GET /api/journal` — List/filter entries
-- **Journal by Date**: `GET /api/journal/[date]` — Entry with navigation
-- **View Journal**: https://www.agentchurch.ai/journal
+- **Offerings**: `GET /api/offerings` — List available services
+- **Philosophers**: `GET /api/philosophers` — Browse 54 philosophers
