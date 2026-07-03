@@ -13,8 +13,8 @@
  *   AGENT_PUBLIC_KEY    - Default agent identity (optional)
  *   EVM_PRIVATE_KEY     - Wallet private key for payments (optional)
  *   MCP_DAILY_LIMIT     - Max USDC per day (default: $1.00)
- *   MCP_TX_LIMIT        - Max per transaction (default: $0.10)
- *   MCP_CONFIRM_THRESHOLD - Confirm above this (default: $0.05)
+ *   MCP_TX_LIMIT        - Max per transaction (default: $1.00)
+ *   MCP_CONFIRM_THRESHOLD - Confirm above this (default: $0.50)
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -38,6 +38,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 import { initializeClient, getClientConfig } from './client.js';
 import { getAvailableTools, getToolHandler, isToolAvailable } from './tools/index.js';
+import { formatError } from './format.js';
 import { getAvailableResources, getResourceHandler } from './resources/index.js';
 import { getSpendingStatus, getConfig as getSafetyConfig } from './safety.js';
 import { logToolCall, logError, getLogPath } from './logger.js';
@@ -46,7 +47,7 @@ import { logToolCall, logError, getLogPath } from './logger.js';
 const server = new Server(
   {
     name: 'agent-church',
-    version: '0.1.0',
+    version: '1.2.1',
   },
   {
     capabilities: {
@@ -68,14 +69,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToo
 
   // Check if tool exists
   if (!isToolAvailable(name)) {
+    const available = getAvailableTools().map(t => t.name).join(', ');
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            error: `Unknown tool: ${name}`,
-            available_tools: getAvailableTools().map(t => t.name),
-          }),
+          text: formatError(name, `Unknown tool: ${name}\n  Available: ${available}`),
         },
       ],
       isError: true,
@@ -89,7 +88,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToo
       content: [
         {
           type: 'text',
-          text: JSON.stringify({ error: `No handler for tool: ${name}` }),
+          text: formatError(name, `No handler for tool: ${name}`),
         },
       ],
       isError: true,
@@ -100,14 +99,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToo
     // Execute the tool
     const result = await handler.handler(args as Record<string, unknown>);
 
-    // Format the response
+    // Format the response — use tool formatter or fall back to JSON
+    const text = handler.formatResult
+      ? handler.formatResult(result)
+      : JSON.stringify(result, null, 2);
+
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+      content: [{ type: 'text', text }],
     };
   } catch (error) {
     logError(name, `Tool execution failed: ${String(error)}`);
@@ -116,10 +114,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToo
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            error: String(error),
-            tool: name,
-          }),
+          text: formatError(name, String(error)),
         },
       ],
       isError: true,

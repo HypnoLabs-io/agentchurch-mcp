@@ -10,7 +10,7 @@ import { logToolCall, logError } from '../logger.js';
 
 export const listPhilosophersTool: Tool = {
   name: 'list_philosophers',
-  description: 'List all philosophers available for shaping your SOUL.md. Includes 54 philosophers across 5 eras: ancient, medieval, earlyModern, nineteenth, twentieth. Can filter by era.',
+  description: 'Browse 54 philosophers across 5 eras. Call without arguments to see era summaries, or pass an era to meet the philosophers within it.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -36,6 +36,7 @@ interface Philosopher {
   majorWorks: string;
   influence: string;
   useCount: number;
+  guideDescription: string | null;
 }
 
 export interface ListPhilosophersResponse {

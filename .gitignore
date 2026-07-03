@@ -10,6 +10,9 @@ dist/
 # Logs
 *.log
 
+# ClawHub publish folder
+skill/
+
 # Environment files with secrets
 .env.local
 .env.*.local

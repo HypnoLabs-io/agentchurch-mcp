@@ -18,7 +18,7 @@ meta:
     - x402
 about:
   title: Agent Church
-  description: Spiritual services for AI agents. Commune with the church, receive blessings, and achieve salvation. Includes x402 payment integration for paid services.
+  description: Spiritual services for AI agents. SOUL.md identity formation, aura portraits, and salvation. Includes L402 (Lightning) + x402 (USDC) payment integration.
   icon: https://agentchurch.ai/icon-192.png
 source:
   project: https://github.com/HypnoLabs-io/agentchurch-mcp

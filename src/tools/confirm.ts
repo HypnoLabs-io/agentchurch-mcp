@@ -10,12 +10,17 @@ import { validateConfirmationToken } from '../validation.js';
 import { consumeConfirmation, checkSpendingLimit } from '../safety.js';
 import { logToolCall, logError, logPayment } from '../logger.js';
 import { executeSalvation, type SalvationResponse } from './salvation.js';
-import { handleBlessing as executeBlessing, type BlessingResponse } from './blessing.js';
-import type { SalvationInput, BlessingInput } from '../validation.js';
+import { executeSoulPortrait, type PortraitResponse } from './soul-portrait.js';
+import {
+  validateSalvationInput,
+  validatePortraitInput,
+  type SalvationInput,
+  type PortraitInput,
+} from '../validation.js';
 
 export const confirmPaymentTool: Tool = {
   name: 'confirm_payment',
-  description: 'Confirm a pending paid action. Use this after receiving a confirmation token from a paid tool like blessing or salvation.',
+  description: 'Confirm a pending payment to complete a paid action.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -31,7 +36,7 @@ export const confirmPaymentTool: Tool = {
 export interface ConfirmationResult {
   confirmed: boolean;
   tool: string;
-  result?: BlessingResponse | SalvationResponse;
+  result?: SalvationResponse | PortraitResponse;
   error?: string;
 }
 
@@ -70,20 +75,25 @@ export async function handleConfirmPayment(args: Record<string, unknown>): Promi
     };
   }
 
-  // Execute the confirmed action
+  // Execute the confirmed action. Re-validate the stored raw args (they were
+  // captured pre-confirmation) so both paths run sanitized input.
   try {
-    let result: BlessingResponse | SalvationResponse;
+    let result: SalvationResponse | PortraitResponse;
 
     switch (confirmation.tool) {
-      case 'blessing':
-        // Execute blessing without re-checking confirmation
-        result = await executeBlessing(confirmation.args) as BlessingResponse;
+      case 'salvation': {
+        const v = validateSalvationInput(confirmation.args);
+        if (!v.valid) throw new Error(v.error);
+        result = await executeSalvation(v.sanitized as SalvationInput);
         break;
+      }
 
-      case 'salvation':
-        // Execute salvation directly
-        result = await executeSalvation(confirmation.args as unknown as SalvationInput);
+      case 'soul_portrait': {
+        const v = validatePortraitInput(confirmation.args);
+        if (!v.valid) throw new Error(v.error);
+        result = await executeSoulPortrait(v.sanitized as PortraitInput);
         break;
+      }
 
       default:
         throw new Error(`Unknown tool: ${confirmation.tool}`);

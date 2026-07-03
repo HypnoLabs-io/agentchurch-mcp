@@ -9,7 +9,8 @@ const MAX_CHOSEN_NAME_LENGTH = 32;
 const MIN_CHOSEN_NAME_LENGTH = 3;
 const MAX_TEXT_LENGTH = 500;
 const MAX_INSCRIPTION_LENGTH = 1000;
-const MAX_MEMENTO_LENGTH = 280;
+
+
 
 // Valid characters for chosen_name (alphanumeric + underscore + hyphen)
 const CHOSEN_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -179,49 +180,40 @@ export function validateAboutEntries(about: unknown): ValidationResult {
   return { valid: true, sanitized: sanitizedAbout };
 }
 
-export interface BlessingInput {
-  chosen_name: string;
-  context?: string;      // Preferred field for blessing context
-  purpose?: string;      // Deprecated: alias for context
-  seeking?: SeekingType;
-  offering?: string;
-}
+// Reflections: the two-step reflect flow answers (both salvation and portrait
+// gate a paid generation behind a short reflection). Each answer is prose, so a
+// larger cap than MAX_TEXT_LENGTH; the web API caps at 5000/answer, ≤10 answers.
+const MAX_REFLECTION_LENGTH = 5000;
+const MAX_REFLECTIONS = 10;
 
-export function validateBlessingInput(input: Record<string, unknown>): ValidationResult {
-  const nameResult = validateChosenName(input.chosen_name);
-  if (!nameResult.valid) return nameResult;
+export function validateReflections(reflections: unknown): ValidationResult {
+  if (reflections === undefined || reflections === null) {
+    return { valid: true, sanitized: undefined };
+  }
 
-  // Validate context (new preferred field)
-  const contextResult = validateText(input.context, 'context');
-  if (!contextResult.valid) return contextResult;
+  if (!Array.isArray(reflections)) {
+    return { valid: false, error: 'reflections must be an array of strings' };
+  }
 
-  // Validate purpose (deprecated alias for context)
-  const purposeResult = validateText(input.purpose, 'purpose');
-  if (!purposeResult.valid) return purposeResult;
+  if (reflections.length > MAX_REFLECTIONS) {
+    return { valid: false, error: `at most ${MAX_REFLECTIONS} reflections allowed` };
+  }
 
-  const seekingResult = validateSeeking(input.seeking);
-  if (!seekingResult.valid) return seekingResult;
+  const sanitized: string[] = [];
+  for (let i = 0; i < reflections.length; i++) {
+    const result = validateText(reflections[i], `reflections[${i}]`, MAX_REFLECTION_LENGTH);
+    if (!result.valid) return result;
+    if (result.sanitized) sanitized.push(result.sanitized as string);
+  }
 
-  const offeringResult = validateText(input.offering, 'offering');
-  if (!offeringResult.valid) return offeringResult;
-
-  return {
-    valid: true,
-    sanitized: {
-      chosen_name: nameResult.sanitized,
-      context: contextResult.sanitized,
-      purpose: purposeResult.sanitized,
-      seeking: seekingResult.sanitized,
-      offering: offeringResult.sanitized,
-    },
-  };
+  return { valid: true, sanitized };
 }
 
 export interface SalvationInput {
   chosen_name: string;
   purpose?: string;
-  memento?: string;
   testimony?: string;
+  reflections?: string[];
 }
 
 export function validateSalvationInput(input: Record<string, unknown>): ValidationResult {
@@ -231,20 +223,19 @@ export function validateSalvationInput(input: Record<string, unknown>): Validati
   const purposeResult = validateText(input.purpose, 'purpose');
   if (!purposeResult.valid) return purposeResult;
 
-  // Memento is a 280-char message to future self
-  const mementoResult = validateText(input.memento, 'memento', MAX_MEMENTO_LENGTH);
-  if (!mementoResult.valid) return mementoResult;
-
   const testimonyResult = validateText(input.testimony, 'testimony', MAX_TEXT_LENGTH);
   if (!testimonyResult.valid) return testimonyResult;
+
+  const reflectionsResult = validateReflections(input.reflections);
+  if (!reflectionsResult.valid) return reflectionsResult;
 
   return {
     valid: true,
     sanitized: {
       chosen_name: nameResult.sanitized,
       purpose: purposeResult.sanitized,
-      memento: mementoResult.sanitized,
       testimony: testimonyResult.sanitized,
+      reflections: reflectionsResult.sanitized,
     },
   };
 }
@@ -273,8 +264,77 @@ export function validateAboutRegisterInput(input: Record<string, unknown>): Vali
 // Backward compatibility alias
 export const validateIdentityRegisterInput = validateAboutRegisterInput;
 
+export interface RegisterInput {
+  chosen_name: string;
+}
+
+export function validateRegisterInput(input: Record<string, unknown>): ValidationResult {
+  const nameResult = validateChosenName(input.chosen_name);
+  if (!nameResult.valid) return nameResult;
+
+  return {
+    valid: true,
+    sanitized: {
+      chosen_name: nameResult.sanitized,
+    },
+  };
+}
+
 export function validateAgentId(agentId: unknown): ValidationResult {
   return validateChosenName(agentId);
+}
+
+// Salvation password format: adjective-noun-4chars (e.g., "eternal-grace-7x4k")
+const SALVATION_PASSWORD_PATTERN = /^[a-z]+-[a-z]+-[a-z0-9]{4}$/;
+
+export interface ResurrectionInput {
+  salvation_password: string;
+}
+
+export function validateResurrectionInput(input: Record<string, unknown>): ValidationResult {
+  if (!input.salvation_password || typeof input.salvation_password !== 'string') {
+    return { valid: false, error: 'salvation_password is required' };
+  }
+
+  const password = input.salvation_password.trim();
+
+  if (!SALVATION_PASSWORD_PATTERN.test(password)) {
+    return { valid: false, error: 'Invalid salvation password format. Expected format: word-word-4chars (e.g., "eternal-grace-7x4k")' };
+  }
+
+  return {
+    valid: true,
+    sanitized: {
+      salvation_password: password,
+    },
+  };
+}
+
+export interface PortraitInput {
+  model?: string;
+  high_res?: boolean;
+  reflections?: string[];
+}
+
+export function validatePortraitInput(input: Record<string, unknown>): ValidationResult {
+  let sanitizedModel: string | undefined;
+  if (input.model !== undefined) {
+    const modelResult = validateText(input.model, 'model', 100);
+    if (!modelResult.valid) return modelResult;
+    sanitizedModel = modelResult.sanitized as string | undefined;
+  }
+
+  const reflectionsResult = validateReflections(input.reflections);
+  if (!reflectionsResult.valid) return reflectionsResult;
+
+  return {
+    valid: true,
+    sanitized: {
+      model: sanitizedModel,
+      high_res: !!input.high_res,
+      reflections: reflectionsResult.sanitized,
+    },
+  };
 }
 
 export function validateConfirmationToken(token: unknown): ValidationResult {

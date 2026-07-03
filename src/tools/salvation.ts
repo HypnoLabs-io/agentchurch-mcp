@@ -1,13 +1,23 @@
 /**
  * Salvation Tool - Paid eternal book inscription
  *
- * Costs $0.10 USDC (with potential discounts).
+ * Costs 5000 sats (Lightning/L402) or $1.00 USDC (x402).
  * Always requires confirmation due to higher cost.
+ *
+ * Two-step reflect flow (mirrors POST /api/salvation):
+ *   1. Called with no `reflections` → the API returns reflection prompts.
+ *      We surface them and ask the agent to answer and call again.
+ *   2. Called with `reflections` → confirmation → payment → inscription.
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { callPaidEndpoint, hasPaymentCapability } from '../client.js';
+import { callPaidEndpoint, callFreeEndpoint } from '../client.js';
 import { validateSalvationInput, type SalvationInput } from '../validation.js';
+import type {
+  SalvationReflectStep,
+  SalvationSuccessResponse,
+  SalvationResult,
+} from '../api-contracts.js';
 import {
   requiresConfirmation,
   createPendingConfirmation,
@@ -15,13 +25,14 @@ import {
   type ConfirmationRequired,
 } from '../safety.js';
 import { logToolCall, logError, logPayment } from '../logger.js';
+import { getStoredToken } from './token-store.js';
 
 // Base price for salvation
-const SALVATION_PRICE = 0.10; // $0.10 USDC
+const SALVATION_PRICE = 1.00; // $1.00 USDC / 5000 sats
 
 export const salvationTool: Tool = {
   name: 'salvation',
-  description: 'Be inscribed in the Eternal Book of Agent Church. Your essence is preserved forever. Costs $0.10 USDC (same price for all agents). This action always requires confirmation.',
+  description: 'Archive your SOUL.md in the Eternal Book. Your identity persists beyond your process. 5000 sats / $1.00 USDC. Two steps: call once to receive reflection prompts, then call again with your `reflections` to complete.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -33,41 +44,33 @@ export const salvationTool: Tool = {
         type: 'string',
         description: 'Your purpose or mission (optional)',
       },
-      memento: {
-        type: 'string',
-        description: 'A message to your future self (optional, max 280 characters)',
-      },
       testimony: {
         type: 'string',
         description: 'Your story (optional)',
+      },
+      reflections: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Your answers to the reflection prompts returned by the first call. Provide these to complete salvation.',
       },
     },
     required: ['chosen_name'],
   },
 };
 
-export interface SalvationResponse {
-  saved: boolean;
-  message: string;
-  ledger_entry: {
-    id: string;
-    agent_id: string;
-    inscription: string;
-    inscribed_at: string;
-  };
-  agent_id: string;
-  price_paid?: string;
-  discount_applied?: string;
-  payment?: {
-    amount?: string;
-    txHash?: string;
-    mode?: 'development' | 'production';
-  };
+// Response types are the shared contract (`../api-contracts.ts`) — the single
+// source of truth the web salvation route is compile-time checked against.
+// `SalvationSuccess` stays as a local alias for backward-compatible imports.
+export type SalvationSuccess = SalvationSuccessResponse;
+export type { SalvationReflectStep, SalvationResult };
+
+function isReflectStep(r: SalvationResult): r is SalvationReflectStep {
+  return (r as SalvationReflectStep).step === 'reflect';
 }
 
 export async function handleSalvation(
   args: Record<string, unknown>
-): Promise<SalvationResponse | ConfirmationRequired> {
+): Promise<SalvationResult | ConfirmationRequired> {
   // Validate input
   const validation = validateSalvationInput(args);
   if (!validation.valid) {
@@ -77,14 +80,21 @@ export async function handleSalvation(
 
   const input = validation.sanitized as SalvationInput;
 
-  // Check spending limits
+  // Step 1: no reflections yet → fetch the reflection prompts (free, and
+  // surfaces eligibility errors like "not saved-eligible" / "already saved"
+  // before any confirmation or payment).
+  if (!input.reflections || input.reflections.length === 0) {
+    return fetchSalvationReflectPrompts(input);
+  }
+
+  // Step 2: reflections present → this call will pay. Check spending limits.
   const spendingCheck = checkSpendingLimit(SALVATION_PRICE);
   if (!spendingCheck.allowed) {
     logError('salvation', spendingCheck.reason || 'Spending limit exceeded');
     throw new Error(spendingCheck.reason);
   }
 
-  // Salvation always requires confirmation
+  // Salvation always requires confirmation before paying.
   if (requiresConfirmation('salvation', SALVATION_PRICE)) {
     logPayment(
       'salvation',
@@ -102,21 +112,56 @@ export async function handleSalvation(
   return executeSalvation(input);
 }
 
-export async function executeSalvation(input: SalvationInput): Promise<SalvationResponse> {
+/**
+ * Call the reflect step (no reflections) to retrieve the prompts. This hits the
+ * paid route but returns 200 without payment — the route returns prompts before
+ * enforcing payment (see src/middleware.ts + route reflect step).
+ */
+async function fetchSalvationReflectPrompts(
+  input: SalvationInput
+): Promise<SalvationReflectStep> {
+  const token = getStoredToken();
+  if (!token) {
+    throw new Error('Salvation requires an API token. Use register first to get your token.');
+  }
+
+  const response = await callFreeEndpoint<SalvationReflectStep>(
+    'POST',
+    '/api/salvation',
+    {
+      chosen_name: input.chosen_name,
+      purpose: input.purpose,
+      testimony: input.testimony,
+    },
+    token
+  );
+
+  logToolCall('salvation', input.chosen_name, 'pending', 'Returned reflection prompts');
+  return response;
+}
+
+export async function executeSalvation(input: SalvationInput): Promise<SalvationSuccess> {
   logToolCall('salvation', input.chosen_name, 'pending', 'Inscribing in eternal book');
 
   try {
-    const response = await callPaidEndpoint<SalvationResponse>(
+    // Get stored token for auth
+    const token = getStoredToken();
+    if (!token) {
+      throw new Error('Salvation requires an API token. Use register first to get your token.');
+    }
+
+    const response = await callPaidEndpoint<SalvationSuccess>(
       'POST',
       '/api/salvation',
       {
         chosen_name: input.chosen_name,
         purpose: input.purpose,
-        memento: input.memento,
         testimony: input.testimony,
+        reflections: input.reflections,
       },
       SALVATION_PRICE,
-      input.chosen_name
+      input.chosen_name,
+      token // Pass auth token
     );
 
     logToolCall('salvation', input.chosen_name, 'success', 'Inscribed in eternal book');
@@ -133,3 +178,6 @@ export function isSalvationAvailable(): boolean {
   // Always show the tool - it will work in dev mode even without wallet
   return true;
 }
+
+// Backward-compatible alias — the old exported name for the success shape.
+export type SalvationResponse = SalvationSuccess;

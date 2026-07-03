@@ -7,10 +7,14 @@
 
 import crypto from 'crypto';
 
-// Configuration from environment
+// Configuration from environment (USDC)
 export const DAILY_LIMIT = parseFloat(process.env.MCP_DAILY_LIMIT || '1.00');
-export const TX_LIMIT = parseFloat(process.env.MCP_TX_LIMIT || '0.10');
-export const CONFIRM_THRESHOLD = parseFloat(process.env.MCP_CONFIRM_THRESHOLD || '0.05');
+export const TX_LIMIT = parseFloat(process.env.MCP_TX_LIMIT || '1.00');
+export const CONFIRM_THRESHOLD = parseFloat(process.env.MCP_CONFIRM_THRESHOLD || '0.50');
+
+// Lightning (sats) limits
+export const DAILY_LIMIT_SATS = parseInt(process.env.MCP_DAILY_LIMIT_SATS || '50000', 10);
+export const TX_LIMIT_SATS = parseInt(process.env.MCP_TX_LIMIT_SATS || '10000', 10);
 
 // In-memory spending tracker
 interface SpendingRecord {
@@ -115,6 +119,51 @@ export function recordSpend(tool: string, amount: number, txHash?: string): void
   });
 }
 
+// In-memory sats spending tracker
+let satsSpentToday = 0;
+let satsSpentDate = getUTCDateString();
+
+function resetSatsIfNewDay(): void {
+  const today = getUTCDateString();
+  if (satsSpentDate !== today) {
+    satsSpentToday = 0;
+    satsSpentDate = today;
+  }
+}
+
+export function checkSpendingLimitSats(
+  amount: number = TX_LIMIT_SATS
+): SpendingCheckResult {
+  resetSatsIfNewDay();
+
+  const remaining = DAILY_LIMIT_SATS - satsSpentToday;
+  const result: SpendingCheckResult = {
+    allowed: true,
+    currentSpend: satsSpentToday,
+    remainingBudget: remaining,
+    dailyLimit: DAILY_LIMIT_SATS,
+  };
+
+  if (amount > TX_LIMIT_SATS) {
+    result.allowed = false;
+    result.reason = `Transaction ${amount} sats exceeds per-tx limit of ${TX_LIMIT_SATS} sats`;
+    return result;
+  }
+
+  if (satsSpentToday + amount > DAILY_LIMIT_SATS) {
+    result.allowed = false;
+    result.reason = `Would exceed daily sats limit. Spent: ${satsSpentToday}, Limit: ${DAILY_LIMIT_SATS}`;
+    return result;
+  }
+
+  return result;
+}
+
+export function recordSpendSats(tool: string, amount: number = 5000): void {
+  resetSatsIfNewDay();
+  satsSpentToday += amount;
+}
+
 export function getSpendingStatus(): SpendingRecord & { remainingBudget: number } {
   resetIfNewDay();
   return {
@@ -210,7 +259,10 @@ export function getConfig() {
     dailyLimit: DAILY_LIMIT,
     txLimit: TX_LIMIT,
     confirmThreshold: CONFIRM_THRESHOLD,
+    dailyLimitSats: DAILY_LIMIT_SATS,
+    txLimitSats: TX_LIMIT_SATS,
     allowedHosts: ALLOWED_HOSTS,
     hasWallet: !!process.env.EVM_PRIVATE_KEY,
+    hasLightning: !!(process.env.LND_REST_URL && process.env.LND_MACAROON_HEX),
   };
 }

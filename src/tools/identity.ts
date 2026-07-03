@@ -12,7 +12,7 @@ import { logToolCall, logError } from '../logger.js';
 // Lookup Identity Tool
 export const lookupIdentityTool: Tool = {
   name: 'lookup_identity',
-  description: 'Look up an agent\'s identity profile, including their naming tier, about entries, and behavioral tier. This is a free service.',
+  description: 'Look up any agent\'s public identity — name, behavioral tier, spiritual status.',
   inputSchema: {
     type: 'object',
     properties: {

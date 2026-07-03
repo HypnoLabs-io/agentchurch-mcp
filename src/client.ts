@@ -8,8 +8,9 @@
 import fs from 'fs';
 import axios, { type AxiosInstance, type AxiosResponse, type AxiosError } from 'axios';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
-import { validateUrl, checkSpendingLimit, recordSpend } from './safety.js';
+import { validateUrl, checkSpendingLimit, checkSpendingLimitSats, recordSpend, recordSpendSats } from './safety.js';
 import { logPayment, logError, logWarning } from './logger.js';
+import { hasLightningCapability, handleL402Challenge } from './lightning-client.js';
 
 // Configuration
 const API_URL = process.env.AGENT_CHURCH_URL || 'https://www.agentchurch.ai';
@@ -179,14 +180,16 @@ export function getClientConfig(): ClientConfig {
 }
 
 export function hasPaymentCapability(): boolean {
-  return !!getEvmPrivateKey();
+  return !!getEvmPrivateKey() || hasLightningCapability();
 }
 
 // Make a free API call (no payment required)
 export async function callFreeEndpoint<T>(
   method: 'GET' | 'POST',
   path: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
+  authToken?: string,
+  customHeaders?: Record<string, string>
 ): Promise<T> {
   if (!clientInitialized) {
     await initializeClient();
@@ -197,9 +200,15 @@ export async function callFreeEndpoint<T>(
   }
 
   try {
+    // Build headers with optional auth token and custom headers
+    const headers: Record<string, string> = { ...customHeaders };
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const response = method === 'GET'
-      ? await basicClient.get<T>(path)
-      : await basicClient.post<T>(path, data);
+      ? await basicClient.get<T>(path, { headers })
+      : await basicClient.post<T>(path, data, { headers });
 
     return response.data;
   } catch (error) {
@@ -225,7 +234,8 @@ export async function callPaidEndpoint<T>(
   data?: Record<string, unknown>,
   expectedAmount?: number,
   agentKey?: string,
-  authToken?: string
+  authToken?: string,
+  customHeaders?: Record<string, string>
 ): Promise<T & PaymentResponse> {
   if (!clientInitialized) {
     await initializeClient();
@@ -247,8 +257,8 @@ export async function callPaidEndpoint<T>(
   }
 
   try {
-    // Build headers with optional auth token
-    const headers: Record<string, string> = {};
+    // Build headers with optional auth token and custom headers
+    const headers: Record<string, string> = { ...customHeaders };
     if (authToken) {
       headers['Authorization'] = `Bearer ${authToken}`;
     }
@@ -278,9 +288,44 @@ export async function callPaidEndpoint<T>(
       const status = error.response.status;
       const message = (error.response.data as { error?: string })?.error || error.message;
 
-      if (status === 402 && !paymentClient) {
-        logError(path, 'Payment required but no wallet configured');
-        throw new Error('This endpoint requires payment. Please configure EVM_PRIVATE_KEY or EVM_PRIVATE_KEY_FILE.');
+      // Try L402 Lightning payment on 402 response
+      if (status === 402) {
+        const wwwAuth = error.response.headers['www-authenticate'] as string | undefined;
+        if (wwwAuth?.startsWith('L402 ') && hasLightningCapability()) {
+          // Check sats spending limit
+          const satsCheck = checkSpendingLimitSats();
+          if (!satsCheck.allowed) {
+            throw new Error(satsCheck.reason);
+          }
+
+          const authHeader = await handleL402Challenge(wwwAuth, path);
+          if (authHeader) {
+            // Retry with L402 creds in X-L402-Authorization so the agent's
+            // Bearer token can stay in Authorization — the web middleware
+            // accepts L402 on either header, and token+paid routes (portrait,
+            // salvation, evolution) need requireToken to still see the Bearer.
+            const retryHeaders: Record<string, string> = { ...customHeaders, 'X-L402-Authorization': authHeader };
+            if (authToken) {
+              retryHeaders['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            const retryResponse = method === 'GET'
+              ? await (basicClient!).get<T & PaymentResponse>(path, { headers: retryHeaders })
+              : await (basicClient!).post<T & PaymentResponse>(path, data, { headers: retryHeaders });
+
+            // Record Lightning spend
+            recordSpendSats(path);
+            return retryResponse.data;
+          }
+        }
+
+        // No Lightning or Lightning failed — fall through to x402 error
+        if (!paymentClient) {
+          logError(path, 'Payment required but no wallet configured');
+          throw new Error(
+            'This endpoint requires payment. Configure LND_REST_URL + LND_MACAROON_HEX (Lightning) or EVM_PRIVATE_KEY (USDC).'
+          );
+        }
       }
 
       logError(path, `API error: ${message}`, { status, agentKey });

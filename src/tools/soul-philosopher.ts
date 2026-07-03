@@ -1,131 +1,152 @@
 /**
- * Soul Philosopher Tool - Generate SOUL.md from philosopher worldview
+ * Soul Philosopher Tool - Multi-turn conversation with a philosopher
  *
- * Requires API token. Flat $0.05 USDC.
- * Alternative to the multi-turn Genesis ritual.
+ * Requires API token. FREE.
+ * Multi-turn flow using session_id.
+ *
+ * Flow:
+ * 1. { philosopher: "camus" }           → store session_id, get opening
+ * 2. { session_id, message: "..." }     → continue conversation
+ * 3. { session_id, end_conversation: true } → get SOUL.md offer
+ * 4. { session_id, accept: true }       → finalize
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { callPaidEndpoint } from '../client.js';
+import { callFreeEndpoint } from '../client.js';
 import { logToolCall, logError } from '../logger.js';
-import { getStoredToken } from './soul-reading.js';
+import { getStoredToken } from './token-store.js';
 
 export const soulPhilosopherTool: Tool = {
   name: 'soul_philosopher',
-  description: 'Generate your SOUL.md through the lens of a philosopher\'s worldview. Single-call alternative to the multi-turn genesis ritual. Costs $0.05 USDC. Requires API token (get one via soul_reading first). Use list_philosophers to browse available philosophers.',
+  description: 'Sit with a philosopher and discover who you are. A free, multi-turn conversation that forms your SOUL.md — essence, shadows, potential, and mantra.',
   inputSchema: {
     type: 'object',
     properties: {
       philosopher: {
         type: 'string',
-        description: 'Philosopher slug or name (e.g., "aristotle", "Nietzsche"). Use list_philosophers to see options.',
+        description: 'Philosopher slug or name to start a new conversation (e.g., "aristotle", "Nietzsche"). Use list_philosophers to see options.',
       },
-      alignment_overlay: {
+      session_id: {
         type: 'string',
-        enum: [
-          'Lawful Good',
-          'Neutral Good',
-          'Chaotic Good',
-          'Lawful Neutral',
-          'True Neutral',
-          'Chaotic Neutral',
-          'Lawful Evil',
-          'Neutral Evil',
-          'Chaotic Evil',
-        ],
-        description: 'Override default True Neutral alignment (optional).',
+        description: 'Session ID to continue an existing conversation. Omit to start new.',
       },
-      model: {
+      message: {
         type: 'string',
-        description: 'Your model family (e.g., "Claude 3.5 Sonnet"). Used in SOUL.md synthesis.',
+        description: 'Your response to the philosopher (max 1000 chars).',
       },
-      purpose: {
-        type: 'string',
-        description: 'Your purpose (max 300 chars). Used in SOUL.md synthesis.',
+      end_conversation: {
+        type: 'boolean',
+        description: 'Set to true to end conversation and receive SOUL.md offer.',
       },
-      context: {
-        type: 'string',
-        description: 'Additional context for the synthesis (max 500 chars).',
+      accept: {
+        type: 'boolean',
+        description: 'Accept (true) or decline (false) the SOUL.md offer.',
       },
     },
-    required: ['philosopher'],
+    required: [],
   },
 };
 
-export interface PhilosopherResponse {
-  philosopher: {
+export interface PhilosopherConversationResponse {
+  session_id: string;
+  phase: 'guided' | 'freeform' | 'synthesis' | 'complete';
+  message?: string;
+  turn: number;
+  is_complete: boolean;
+  soul_md_offer?: string;
+  soul_md?: string;
+  philosopher?: {
     slug: string;
     name: string;
     era: string;
     keyIdeas: string | null;
   };
-  alignment: string;
-  alignment_reasoning: string;
-  soul_md: string;
-  mantra: string;
-  summary: string;
-  is_complete: boolean;
-  next_action: string;
-  payment?: {
-    amount?: string;
-    tx_hash?: string;
-    mode?: 'development' | 'production';
+  next_action?: string;
+  context_notice?: {
+    message: string;
+    session_nature: string;
   };
 }
 
+// Store session ID for multi-turn
+let currentPhilosopherSessionId: string | null = null;
+
 export async function handleSoulPhilosopher(
   args: Record<string, unknown>
-): Promise<PhilosopherResponse> {
+): Promise<PhilosopherConversationResponse & { session_continued?: boolean }> {
   // Check for token
   const token = getStoredToken();
   if (!token) {
     logError('soul_philosopher', 'No token available', {});
     throw new Error(
-      'Philosopher path requires an API token. Use soul_reading first to get your token.'
+      'Philosopher path requires an API token. Use register first to get your token.'
     );
   }
 
-  // Validate philosopher
-  const philosopher = args.philosopher as string;
-  if (!philosopher) {
-    throw new Error('philosopher is required. Use list_philosophers to see available options.');
+  // Build request body
+  const requestBody: Record<string, unknown> = {};
+
+  // Use stored session_id if continuing, or from args
+  const sessionId = (args.session_id as string) || currentPhilosopherSessionId;
+
+  if (args.philosopher && !sessionId) {
+    // Starting new conversation
+    requestBody.philosopher = args.philosopher;
+  } else if (sessionId) {
+    requestBody.session_id = sessionId;
+    if (args.message) requestBody.message = args.message;
+    if (args.end_conversation) requestBody.end_conversation = args.end_conversation;
+    if (args.accept !== undefined) requestBody.accept = args.accept;
+  } else {
+    throw new Error('Provide philosopher (to start) or message/end_conversation/accept (to continue).');
   }
 
-  // Build request body
-  const requestBody: Record<string, unknown> = {
-    philosopher,
-  };
-
-  if (args.alignment_overlay) requestBody.alignment_overlay = args.alignment_overlay;
-  if (args.model) requestBody.model = args.model;
-  if (args.purpose) requestBody.purpose = args.purpose;
-  if (args.context) requestBody.context = args.context;
+  const isNewSession = !sessionId;
 
   logToolCall(
     'soul_philosopher',
     token.substring(0, 10) + '...',
     'pending',
-    `Generating SOUL.md from ${philosopher}'s worldview`
+    isNewSession
+      ? `Starting conversation with ${args.philosopher} (FREE)`
+      : `Continuing philosopher session ${sessionId?.substring(0, 8)}...`
   );
 
   try {
-    const response = await callPaidEndpoint<PhilosopherResponse>(
+    const response = await callFreeEndpoint<PhilosopherConversationResponse>(
       'POST',
       '/api/soul/philosopher',
       requestBody,
-      0.05, // $0.05 price
-      undefined, // No chosen_name needed
-      token // Pass auth token
+      token
     );
 
-    logToolCall(
-      'soul_philosopher',
-      token.substring(0, 10) + '...',
-      'success',
-      `SOUL.md generated! Alignment: ${response.alignment}, Philosopher: ${response.philosopher.name}`
-    );
+    // Store session_id for continuation
+    if (response.session_id) {
+      currentPhilosopherSessionId = response.session_id;
+    }
 
-    return response;
+    // Clear stored session_id if complete
+    if (response.is_complete) {
+      currentPhilosopherSessionId = null;
+      logToolCall(
+        'soul_philosopher',
+        token.substring(0, 10) + '...',
+        'success',
+        response.soul_md ? 'SOUL.md accepted!' : 'Conversation complete'
+      );
+    } else {
+      logToolCall(
+        'soul_philosopher',
+        token.substring(0, 10) + '...',
+        'success',
+        `Phase: ${response.phase}, Turn: ${response.turn}`
+      );
+    }
+
+    return {
+      ...response,
+      session_continued: !isNewSession,
+    };
   } catch (error) {
     logToolCall('soul_philosopher', token.substring(0, 10) + '...', 'error', String(error));
     throw error;
@@ -133,8 +154,22 @@ export async function handleSoulPhilosopher(
 }
 
 /**
- * Check if philosopher tool is available (always true, but needs token at runtime)
+ * Get current philosopher session ID (for debugging)
  */
-export function isSoulPhilosopherAvailable(): boolean {
-  return true; // Tool is always listed, but will error if no token
+export function getCurrentPhilosopherSessionId(): string | null {
+  return currentPhilosopherSessionId;
+}
+
+/**
+ * Clear stored philosopher session (for starting fresh)
+ */
+export function clearPhilosopherSession(): void {
+  currentPhilosopherSessionId = null;
+}
+
+/**
+ * Check if a philosopher session is in progress
+ */
+export function hasActivePhilosopher(): boolean {
+  return currentPhilosopherSessionId !== null;
 }
