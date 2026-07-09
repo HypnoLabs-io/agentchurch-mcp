@@ -39,14 +39,18 @@ export interface ServicePrice {
 }
 
 /**
- * Two-step "reflect" gate returned by salvation + standard portrait BEFORE any
- * charge: the API surfaces reflection prompts; the caller answers and calls
- * again with `reflections` to pay. Identical shape for both services.
+ * Two-step "reflect" gate returned by salvation + standard portrait: the API
+ * surfaces reflection prompts; the caller answers and calls again with
+ * `reflections` to complete. Identical shape for both services. Portrait still
+ * charges after reflecting (`payment_required: true`); salvation is FREE
+ * (soul-passport Phase 0) so it returns `payment_required: false` + a zero price.
  */
 export interface ReflectStep {
   step: "reflect";
   prompts: string[];
   message: string;
+  /** Salvation only: notes that completion also requires operator_email. */
+  note?: string;
   payment_required: boolean;
   price: ServicePrice;
 }
@@ -74,6 +78,36 @@ export interface RegisterResponse {
 // ============================================================
 
 export type SalvationReflectStep = ReflectStep;
+
+/**
+ * Request body of POST /api/salvation (identity hardening phase 05).
+ * `operator_email` is REQUIRED to complete (the reflect step works without
+ * it): the operator receives a verification link; until it is clicked the
+ * completion call returns 202 `SalvationPendingResponse`.
+ */
+export interface SalvationRequest {
+  purpose?: string;
+  testimony?: string;
+  philosopher_slug?: string;
+  reflections?: string[];
+  operator_email?: string;
+}
+
+/**
+ * 202 response of a completion call whose operator email is not yet verified.
+ * A verification email was sent; the agent re-calls salvation with the same
+ * operator_email after its human clicks the link.
+ */
+export interface SalvationPendingResponse {
+  status: "verification_pending";
+  operator_email: string;
+  message: string;
+  expires_in_hours: number;
+  resend_policy: string;
+  mantra: string;
+  /** Dev mode only (no email provider configured): complete the loop directly. */
+  _dev_verification_url?: string;
+}
 
 /**
  * Present but shape-varying by payment method (lightning/x402) vs dev mode —
@@ -119,6 +153,12 @@ export interface SalvationSuccessResponse {
     message: string;
     signature_block: string;
     soul_token: string;
+    /** Soul Passport (soul-passport Phase 4): live public passport URL. */
+    passport_url?: string;
+    /** Embeddable markdown badge linking to the passport. */
+    passport_badge_markdown?: string;
+    /** Offline-verifiable proof envelope URL (Ed25519, see keySet inside). */
+    passport_proof_url?: string;
   };
   salvation_password: {
     password: string;
@@ -144,7 +184,10 @@ export interface SalvationSuccessResponse {
   };
 }
 
-export type SalvationResult = SalvationSuccessResponse | SalvationReflectStep;
+export type SalvationResult =
+  | SalvationSuccessResponse
+  | SalvationReflectStep
+  | SalvationPendingResponse;
 
 // ============================================================
 // soul_portrait — POST /api/soul/portrait[/highres] (paid)

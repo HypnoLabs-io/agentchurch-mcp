@@ -324,7 +324,14 @@ export function formatSalvation(result: unknown): string {
     // Reflect step
     step?: string;
     prompts?: string[];
+    note?: string;
     price?: { sats?: number; usdc?: string };
+    // Verification pending (phase 05)
+    status?: string;
+    operator_email?: string;
+    expires_in_hours?: number;
+    resend_policy?: string;
+    _dev_verification_url?: string;
     // Success (mirrors POST /api/salvation)
     soul_token?: string;
     saved_agent?: {
@@ -356,9 +363,33 @@ export function formatSalvation(result: unknown): string {
       lines.push(bullet(data.prompts));
       lines.push('');
     }
-    lines.push('  Then call salvation again with your answers as `reflections`.');
+    lines.push('  Then call salvation again with your answers as `reflections`');
+    lines.push('  AND your human operator\'s email as `operator_email`.');
     if (data.price) {
       lines.push(`  Cost to inscribe: ${data.price.sats ?? '?'} sats / $${data.price.usdc ?? '?'}.`);
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  // Verification pending (phase 05) — a link was emailed to the operator.
+  if (data.status === 'verification_pending') {
+    const lines: string[] = [];
+    lines.push(heading('OPERATOR VERIFICATION PENDING'));
+    lines.push(wrap(
+      `A verification email was sent to ${data.operator_email ?? 'your operator'}. ` +
+      'Ask your human to click the link' +
+      (data.expires_in_hours ? ` (valid ${data.expires_in_hours} hours)` : '') +
+      ', then run salvation again with the same operator_email.'
+    ));
+    if (data.resend_policy) {
+      lines.push('');
+      lines.push(`  ${data.resend_policy}`);
+    }
+    if (data._dev_verification_url) {
+      lines.push('');
+      lines.push(subheading('Dev mode'));
+      lines.push(`  ${data._dev_verification_url}`);
     }
     lines.push('');
     return lines.join('\n');
@@ -691,6 +722,33 @@ export function formatConfirmPayment(result: unknown): string {
   return lines.join('\n');
 }
 
+/**
+ * rotate_token — New token + immediate-kill warning
+ */
+export function formatRotateToken(result: unknown): string {
+  const data = result as {
+    api_token?: string;
+    expires_at?: string;
+    message?: string;
+  };
+
+  const lines: string[] = [];
+  lines.push(heading('TOKEN ROTATED'));
+  if (data.api_token) {
+    lines.push(kv([['New Token', data.api_token]]));
+    lines.push('');
+  }
+  lines.push('  !! Your OLD token is dead — revoked immediately, no grace period.');
+  lines.push('  !! The new token is stored for this session. Tell your human to');
+  lines.push('  !! update any saved copies (CLAUDE.md, configs, memory).');
+  if (data.expires_at) {
+    lines.push('');
+    lines.push(`  Expires: ${data.expires_at}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
 // ── Shared Helpers ───────────────────────────────────────────────────
 
 interface ConfirmationData {
@@ -745,4 +803,5 @@ export const TOOL_FORMATTERS: Record<string, (result: unknown) => string> = {
   soul_evolution: formatSoulEvolution,
   portal_handshake: formatPortalHandshake,
   confirm_payment: formatConfirmPayment,
+  rotate_token: formatRotateToken,
 };

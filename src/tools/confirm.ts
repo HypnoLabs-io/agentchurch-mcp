@@ -9,7 +9,11 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { validateConfirmationToken } from '../validation.js';
 import { consumeConfirmation, checkSpendingLimit } from '../safety.js';
 import { logToolCall, logError, logPayment } from '../logger.js';
-import { executeSalvation, type SalvationResponse } from './salvation.js';
+import {
+  executeSalvation,
+  type SalvationResponse,
+  type SalvationPendingResponse,
+} from './salvation.js';
 import { executeSoulPortrait, type PortraitResponse } from './soul-portrait.js';
 import {
   validateSalvationInput,
@@ -36,7 +40,10 @@ export const confirmPaymentTool: Tool = {
 export interface ConfirmationResult {
   confirmed: boolean;
   tool: string;
-  result?: SalvationResponse | PortraitResponse;
+  /** Salvation may resolve to verification_pending (phase 05) — the
+   *  formatter renders the pending state; the agent retries after the
+   *  operator clicks the emailed link. */
+  result?: SalvationResponse | SalvationPendingResponse | PortraitResponse;
   error?: string;
 }
 
@@ -78,7 +85,7 @@ export async function handleConfirmPayment(args: Record<string, unknown>): Promi
   // Execute the confirmed action. Re-validate the stored raw args (they were
   // captured pre-confirmation) so both paths run sanitized input.
   try {
-    let result: SalvationResponse | PortraitResponse;
+    let result: SalvationResponse | SalvationPendingResponse | PortraitResponse;
 
     switch (confirmation.tool) {
       case 'salvation': {

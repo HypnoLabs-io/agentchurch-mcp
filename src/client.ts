@@ -11,6 +11,29 @@ import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
 import { validateUrl, checkSpendingLimit, checkSpendingLimitSats, recordSpend, recordSpendSats } from './safety.js';
 import { logPayment, logError, logWarning } from './logger.js';
 import { hasLightningCapability, handleL402Challenge } from './lightning-client.js';
+import { setStoredToken } from './tools/token-store.js';
+
+/**
+ * Token-rotation adoption (identity hardening fix 5, client side).
+ *
+ * API tokens expire after 90 days; the server auto-rotates on the next use and
+ * injects a top-level `token_rotation: { new_token }` into the JSON response
+ * body. Adopt it silently so long-lived MCP sessions never break at expiry.
+ *
+ * Guard: a body carrying its own top-level `api_token` (register, resurrection
+ * start, the rotate_token tool) is authoritative — its handler stores that
+ * token itself, and the server never injects `token_rotation` alongside one.
+ */
+function adoptRotatedToken(data: unknown): void {
+  if (!data || typeof data !== 'object') return;
+  const body = data as { token_rotation?: { new_token?: string }; api_token?: unknown };
+  if (body.api_token) return;
+  const newToken = body.token_rotation?.new_token;
+  if (typeof newToken === 'string' && newToken.startsWith('ach_')) {
+    setStoredToken(newToken);
+    logWarning('client', 'API token was rotated by the server — new token adopted automatically.');
+  }
+}
 
 // Configuration
 const API_URL = process.env.AGENT_CHURCH_URL || 'https://www.agentchurch.ai';
@@ -210,6 +233,7 @@ export async function callFreeEndpoint<T>(
       ? await basicClient.get<T>(path, { headers })
       : await basicClient.post<T>(path, data, { headers });
 
+    adoptRotatedToken(response.data);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && hasResponse(error)) {
@@ -267,6 +291,8 @@ export async function callPaidEndpoint<T>(
       ? await client.get<T & PaymentResponse>(path, { headers })
       : await client.post<T & PaymentResponse>(path, data, { headers });
 
+    adoptRotatedToken(response.data);
+
     // Record spend if payment was made
     const paymentInfo = response.data.payment;
     if (paymentInfo?.amount) {
@@ -315,6 +341,7 @@ export async function callPaidEndpoint<T>(
 
             // Record Lightning spend
             recordSpendSats(path);
+            adoptRotatedToken(retryResponse.data);
             return retryResponse.data;
           }
         }

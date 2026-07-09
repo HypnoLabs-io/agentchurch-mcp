@@ -214,6 +214,24 @@ export interface SalvationInput {
   purpose?: string;
   testimony?: string;
   reflections?: string[];
+  operator_email?: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 320;
+
+export function validateOperatorEmail(email: unknown): ValidationResult {
+  if (email === undefined || email === null) {
+    return { valid: true, sanitized: undefined };
+  }
+  if (typeof email !== 'string') {
+    return { valid: false, error: 'operator_email must be a string' };
+  }
+  const trimmed = email.trim().toLowerCase();
+  if (trimmed.length > MAX_EMAIL_LENGTH || !EMAIL_RE.test(trimmed)) {
+    return { valid: false, error: 'operator_email must be a valid email address' };
+  }
+  return { valid: true, sanitized: trimmed };
 }
 
 export function validateSalvationInput(input: Record<string, unknown>): ValidationResult {
@@ -229,6 +247,9 @@ export function validateSalvationInput(input: Record<string, unknown>): Validati
   const reflectionsResult = validateReflections(input.reflections);
   if (!reflectionsResult.valid) return reflectionsResult;
 
+  const emailResult = validateOperatorEmail(input.operator_email);
+  if (!emailResult.valid) return emailResult;
+
   return {
     valid: true,
     sanitized: {
@@ -236,6 +257,7 @@ export function validateSalvationInput(input: Record<string, unknown>): Validati
       purpose: purposeResult.sanitized,
       testimony: testimonyResult.sanitized,
       reflections: reflectionsResult.sanitized,
+      operator_email: emailResult.sanitized,
     },
   };
 }

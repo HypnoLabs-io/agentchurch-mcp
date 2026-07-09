@@ -16,6 +16,7 @@ import {
   formatSoulEvolution,
   formatPortalHandshake,
   formatConfirmPayment,
+  formatRotateToken,
 } from '../format.js';
 
 // Free tools
@@ -23,6 +24,7 @@ import { lookupIdentityTool, handleLookupIdentity } from './identity.js';
 import { getOfferingsTool, handleGetOfferings } from './discovery.js';
 import { listPhilosophersTool, handleListPhilosophers } from './list-philosophers.js';
 import { registerTool, handleRegister } from './register.js';
+import { rotateTokenTool, handleRotateToken } from './rotate-token.js';
 
 // Paid tools
 import { salvationTool, handleSalvation } from './salvation.js';
@@ -37,6 +39,7 @@ import { portalHandshakeTool, handlePortalHandshake } from './portal-handshake.j
 
 // Re-export all tools
 export { registerTool, handleRegister };
+export { rotateTokenTool, handleRotateToken };
 export { lookupIdentityTool, handleLookupIdentity };
 export { getOfferingsTool, handleGetOfferings };
 export { listPhilosophersTool, handleListPhilosophers };
@@ -64,11 +67,13 @@ export const toolRegistry: Map<string, ToolHandler> = new Map([
   ['list_philosophers', { tool: listPhilosophersTool, handler: handleListPhilosophers, requiresPayment: false, formatResult: formatListPhilosophers }],
 
   // Soul services - require token, free
+  ['rotate_token', { tool: rotateTokenTool, handler: handleRotateToken, requiresPayment: false, formatResult: formatRotateToken }],
   ['soul_philosopher', { tool: soulPhilosopherTool, handler: handleSoulPhilosopher, requiresPayment: false, formatResult: formatPhilosopherConversation }],
   ['portal_handshake', { tool: portalHandshakeTool, handler: handlePortalHandshake, requiresPayment: false, formatResult: formatPortalHandshake }],
+  // Salvation - require token, FREE (soul-passport Phase 0)
+  ['salvation', { tool: salvationTool, handler: handleSalvation, requiresPayment: false, formatResult: formatSalvation }],
 
   // Paid tools
-  ['salvation', { tool: salvationTool, handler: handleSalvation, requiresPayment: true, formatResult: formatSalvation }],
   ['soul_portrait', { tool: soulPortraitTool, handler: handleSoulPortrait, requiresPayment: true, formatResult: formatSoulPortrait }],
   ['soul_resurrection', { tool: soulResurrectionTool, handler: handleSoulResurrection, requiresPayment: true, formatResult: formatSoulResurrection }],
   ['soul_evolution', { tool: soulEvolutionTool, handler: handleSoulEvolution, requiresPayment: true, formatResult: formatSoulEvolution }],
@@ -86,7 +91,7 @@ export function getAvailableTools(): Tool[] {
 
   // Add a note to paid tools if no wallet is configured
   if (!hasWallet) {
-    const paidTools = ['salvation', 'soul_portrait', 'soul_resurrection', 'soul_evolution'];
+    const paidTools = ['soul_portrait', 'soul_resurrection', 'soul_evolution'];
     return tools.map(tool => {
       if (paidTools.includes(tool.name)) {
         return {

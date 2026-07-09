@@ -13,11 +13,12 @@ Core modules for the Agent Church MCP server.
 
 ### client.ts (HTTP Client)
 - Wraps axios with @x402/axios for automatic USDC payment
+- **Token-rotation adoption (fix 5)**: `adoptRotatedToken()` runs on every successful response (free, paid, and L402-retry paths) — if the body carries top-level `token_rotation.new_token`, it is stored via `setStoredToken()` so sessions survive the 90-day expiry. Guard: bodies with their own top-level `api_token` (register, resurrection start, rotate_token) are skipped — their handler stores the authoritative token itself.
 - `callFreeEndpoint()` - No payment capability (identity, discovery, soul philosopher). Supports optional `authToken` and `customHeaders`.
-- `callPaidEndpoint()` - Handles 402 responses with payment (salvation, portrait, resurrection, evolution). On 402:
+- `callPaidEndpoint()` - Handles 402 responses with payment (portrait, resurrection, evolution). On 402:
   1. The @x402/axios wrapper auto-attempts USDC (x402) payment first
   2. If still 402, checks `WWW-Authenticate` for L402 header → falls back to Lightning payment
-  - **L402 retry headers**: on the Lightning retry the L402 creds go in `X-L402-Authorization` and the agent's Bearer token stays in `Authorization` (the web middleware accepts L402 on either header). This is required for token+paid routes (portrait, salvation, evolution) so `requireToken` still sees the Bearer. (Was previously `Authorization: L402` + `X-Agent-Token`, which broke those routes on Lightning.)
+  - **L402 retry headers**: on the Lightning retry the L402 creds go in `X-L402-Authorization` and the agent's Bearer token stays in `Authorization` (the web middleware accepts L402 on either header). This is required for token+paid routes (portrait, evolution) so `requireToken` still sees the Bearer. (Was previously `Authorization: L402` + `X-Agent-Token`, which broke those routes on Lightning.) Salvation is FREE and goes through `callFreeEndpoint()`.
 - `hasPaymentCapability()` - Returns true if Lightning OR EVM wallet configured
 - Supports dev mode (no wallet)
 - **Docker secrets support**: Loads private key from `EVM_PRIVATE_KEY_FILE` or `EVM_PRIVATE_KEY` env var
@@ -63,6 +64,7 @@ Core modules for the Agent Church MCP server.
 - Compiled by BOTH builds: the MCP `tsc` (its own `rootDir: "src"`) and the web build, which imports it **type-only** via the `@agentchurch/mcp-contracts` tsconfig path alias. One physical file compiled by both makes response drift a compile error instead of a silent runtime surprise.
 - Imported by `tools/salvation.ts` (`SalvationSuccessResponse`, `SalvationReflectStep`, `SalvationResult`) and `tools/soul-portrait.ts` (`PortraitSuccessResponse`, `PortraitReflectStep`, `PortraitResult`). Also defines `RegisterResponse`, the `ReflectStep` primitive, and the `Resurrection*`/`Evolution*` response shapes.
 - See the file header for the full rationale (the pragmatic form of the audit's "shared `@agentchurch/types` package", 2.3).
+- **Soul Passport (2026-07-09):** `SalvationSuccessResponse.shareable` gained OPTIONAL `passport_url` / `passport_badge_markdown` / `passport_proof_url` fields — the web salvation route now returns the live passport link + embeddable badge. Optional → backward compatible; **no MCP republish required** for this alone (the published 1.2.2 client simply ignores them). Also note the API-side R9 change: salvation no longer accepts a request `soul_md` (formation via the Philosopher Path is required) — the MCP salvation tool never sent one, so it is unaffected.
 
 ### resources/index.ts (Resource Registry)
 - Exports `resourceRegistry` Map with all resources and handlers

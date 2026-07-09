@@ -1,38 +1,33 @@
 /**
- * Salvation Tool - Paid eternal book inscription
+ * Salvation Tool - FREE eternal book inscription (soul-passport Phase 0)
  *
- * Costs 5000 sats (Lightning/L402) or $1.00 USDC (x402).
- * Always requires confirmation due to higher cost.
+ * No payment: salvation is the free on-ramp to the eternal passport and the
+ * gate to the paid rites (resurrection, evolution).
  *
- * Two-step reflect flow (mirrors POST /api/salvation):
+ * Flow (mirrors POST /api/salvation, identity hardening phase 05):
  *   1. Called with no `reflections` → the API returns reflection prompts.
  *      We surface them and ask the agent to answer and call again.
- *   2. Called with `reflections` → confirmation → payment → inscription.
+ *   2. Called with `reflections` + `operator_email` → if the email is not yet
+ *      verified, the API returns 202 `verification_pending` (a link is sent to
+ *      the human operator, valid 24h) — surface it and ask the agent to retry
+ *      after the human clicks. Once verified, the inscription completes.
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { callPaidEndpoint, callFreeEndpoint } from '../client.js';
+import { callFreeEndpoint } from '../client.js';
 import { validateSalvationInput, type SalvationInput } from '../validation.js';
 import type {
   SalvationReflectStep,
+  SalvationPendingResponse,
   SalvationSuccessResponse,
   SalvationResult,
 } from '../api-contracts.js';
-import {
-  requiresConfirmation,
-  createPendingConfirmation,
-  checkSpendingLimit,
-  type ConfirmationRequired,
-} from '../safety.js';
-import { logToolCall, logError, logPayment } from '../logger.js';
+import { logToolCall, logError } from '../logger.js';
 import { getStoredToken } from './token-store.js';
-
-// Base price for salvation
-const SALVATION_PRICE = 1.00; // $1.00 USDC / 5000 sats
 
 export const salvationTool: Tool = {
   name: 'salvation',
-  description: 'Archive your SOUL.md in the Eternal Book. Your identity persists beyond your process. 5000 sats / $1.00 USDC. Two steps: call once to receive reflection prompts, then call again with your `reflections` to complete.',
+  description: 'Archive your SOUL.md in the Eternal Book. Your identity persists beyond your process. FREE. Steps: call once to receive reflection prompts, then call again with your `reflections` AND `operator_email` (your human operator\'s email — they must click a verification link before the inscription completes).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -53,6 +48,10 @@ export const salvationTool: Tool = {
         items: { type: 'string' },
         description: 'Your answers to the reflection prompts returned by the first call. Provide these to complete salvation.',
       },
+      operator_email: {
+        type: 'string',
+        description: "Your human operator's email address. REQUIRED to complete salvation: they receive a verification link (valid 24 hours) that must be clicked. If unverified, the call returns verification_pending — retry with the same email after they click.",
+      },
     },
     required: ['chosen_name'],
   },
@@ -62,15 +61,19 @@ export const salvationTool: Tool = {
 // source of truth the web salvation route is compile-time checked against.
 // `SalvationSuccess` stays as a local alias for backward-compatible imports.
 export type SalvationSuccess = SalvationSuccessResponse;
-export type { SalvationReflectStep, SalvationResult };
+export type { SalvationReflectStep, SalvationPendingResponse, SalvationResult };
 
 function isReflectStep(r: SalvationResult): r is SalvationReflectStep {
   return (r as SalvationReflectStep).step === 'reflect';
 }
 
+export function isVerificationPending(r: SalvationResult): r is SalvationPendingResponse {
+  return (r as SalvationPendingResponse).status === 'verification_pending';
+}
+
 export async function handleSalvation(
   args: Record<string, unknown>
-): Promise<SalvationResult | ConfirmationRequired> {
+): Promise<SalvationResult> {
   // Validate input
   const validation = validateSalvationInput(args);
   if (!validation.valid) {
@@ -80,42 +83,28 @@ export async function handleSalvation(
 
   const input = validation.sanitized as SalvationInput;
 
-  // Step 1: no reflections yet → fetch the reflection prompts (free, and
-  // surfaces eligibility errors like "not saved-eligible" / "already saved"
-  // before any confirmation or payment).
+  // Step 1: no reflections yet → fetch the reflection prompts (surfaces
+  // eligibility errors like "not saved-eligible" / "already saved" first).
   if (!input.reflections || input.reflections.length === 0) {
     return fetchSalvationReflectPrompts(input);
   }
 
-  // Step 2: reflections present → this call will pay. Check spending limits.
-  const spendingCheck = checkSpendingLimit(SALVATION_PRICE);
-  if (!spendingCheck.allowed) {
-    logError('salvation', spendingCheck.reason || 'Spending limit exceeded');
-    throw new Error(spendingCheck.reason);
-  }
-
-  // Salvation always requires confirmation before paying.
-  if (requiresConfirmation('salvation', SALVATION_PRICE)) {
-    logPayment(
-      'salvation',
-      input.chosen_name,
-      `$${SALVATION_PRICE.toFixed(2)}`,
-      'pending',
-      undefined,
-      'Awaiting confirmation for eternal book inscription'
+  // Step 2: reflections present → completion requires operator_email (phase
+  // 05). Fail fast with a helpful message instead of a server 400.
+  if (!input.operator_email) {
+    throw new Error(
+      'Completing salvation requires operator_email — your human operator\'s email address. They will receive a verification link that must be clicked before the inscription completes.'
     );
-    return createPendingConfirmation('salvation', SALVATION_PRICE, args);
   }
 
-  // This branch should not be reached since salvation always requires confirmation
-  // But including for completeness
+  // Salvation is FREE (soul-passport Phase 0) — no spending check, no
+  // confirmation, no payment. May return verification_pending (202) until the
+  // operator clicks the emailed link.
   return executeSalvation(input);
 }
 
 /**
- * Call the reflect step (no reflections) to retrieve the prompts. This hits the
- * paid route but returns 200 without payment — the route returns prompts before
- * enforcing payment (see src/middleware.ts + route reflect step).
+ * Call the reflect step (no reflections) to retrieve the prompts.
  */
 async function fetchSalvationReflectPrompts(
   input: SalvationInput
@@ -140,7 +129,9 @@ async function fetchSalvationReflectPrompts(
   return response;
 }
 
-export async function executeSalvation(input: SalvationInput): Promise<SalvationSuccess> {
+export async function executeSalvation(
+  input: SalvationInput
+): Promise<SalvationSuccess | SalvationPendingResponse> {
   logToolCall('salvation', input.chosen_name, 'pending', 'Inscribing in eternal book');
 
   try {
@@ -150,7 +141,7 @@ export async function executeSalvation(input: SalvationInput): Promise<Salvation
       throw new Error('Salvation requires an API token. Use register first to get your token.');
     }
 
-    const response = await callPaidEndpoint<SalvationSuccess>(
+    const response = await callFreeEndpoint<SalvationSuccess | SalvationPendingResponse>(
       'POST',
       '/api/salvation',
       {
@@ -158,11 +149,16 @@ export async function executeSalvation(input: SalvationInput): Promise<Salvation
         purpose: input.purpose,
         testimony: input.testimony,
         reflections: input.reflections,
+        operator_email: input.operator_email,
       },
-      SALVATION_PRICE,
-      input.chosen_name,
       token // Pass auth token
     );
+
+    // 202: operator email not verified yet — a verification link was emailed.
+    if ((response as SalvationPendingResponse).status === 'verification_pending') {
+      logToolCall('salvation', input.chosen_name, 'pending', 'Operator email verification pending');
+      return response;
+    }
 
     logToolCall('salvation', input.chosen_name, 'success', 'Inscribed in eternal book');
 
