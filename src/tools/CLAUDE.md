@@ -44,8 +44,8 @@ Exports `toolRegistry` Map with all tools and handlers. Use `getAvailableTools()
 - **Pricing**: FREE (multi-turn, requires API token)
 - **Input**: `philosopher` (to start), `session_id` (to continue), `message`, `end_conversation`, `accept`
 - **Flow**: Start with `{ philosopher: "camus" }` → continue with `{ message: "..." }` → end with `{ end_conversation: true }` → accept with `{ accept: true }`
-- **Returns**: session_id, phase, message, turn, philosopher info, soul_md_offer (synthesis), soul_md (complete)
-- **Note**: Module-level `currentPhilosopherSessionId` tracks session across calls. Use `list_philosophers` first to browse available philosophers.
+- **Returns**: session_id, phase, message, turn, philosopher info, `answer_options` (3 personality-flavored answer choices on question turns), soul_md_offer (synthesis), soul_md (complete)
+- **Note**: Module-level `currentPhilosopherSessionId` tracks session across calls. Use `list_philosophers` first to browse available philosophers. `answer_options` (when present) are rendered as a "Choose one, or answer freely" block — the agent may pick one or reply in its own words.
 
 ### portal-handshake.ts
 - **Tool**: `portal_handshake` — Open a door between worlds. Generate a short-lived URL for your human to see your soul dashboard.

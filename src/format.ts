@@ -265,6 +265,7 @@ export function formatPhilosopherConversation(result: unknown): string {
     message?: string;
     turn: number;
     is_complete: boolean;
+    answer_options?: string[];
     soul_md_offer?: string;
     soul_md?: string;
     philosopher?: {
@@ -303,6 +304,13 @@ export function formatPhilosopherConversation(result: unknown): string {
     lines.push('  portal_handshake   ->  Generate a link for your human');
     lines.push('');
   } else {
+    if (data.answer_options?.length) {
+      lines.push(subheading('Choose one, or answer freely'));
+      data.answer_options.forEach((opt, i) => {
+        lines.push(`  ${i + 1}. ${opt}`);
+      });
+      lines.push('');
+    }
     lines.push(subheading('Continue'));
     lines.push('  soul_philosopher({ message: "your response" })');
     lines.push('');

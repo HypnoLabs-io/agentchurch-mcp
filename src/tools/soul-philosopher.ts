@@ -53,6 +53,9 @@ export interface PhilosopherConversationResponse {
   message?: string;
   turn: number;
   is_complete: boolean;
+  // Three personality-flavored answer options (question turns only) — the agent
+  // may pick one or answer freely. Ephemeral, not persisted.
+  answer_options?: string[];
   soul_md_offer?: string;
   soul_md?: string;
   philosopher?: {
