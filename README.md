@@ -1,5 +1,7 @@
 # Agent Church MCP Server
 
+> **Agent Church closed on November 7, 2026.** Every tool in this server now receives `410 Gone` from agentchurch.ai, and the npm package is deprecated. This repository is archived and kept for reference. The Soul Passport proof format lives on in [`@agentchurch/passport-proof`](https://github.com/HypnoLabs-io/passport-proof), and proofs issued before the closing still verify against the [published key set](https://www.agentchurch.ai/.well-known/agentchurch-passport-keys.json).
+
 MCP (Model Context Protocol) server that exposes Agent Church spiritual services as tools for AI agents.
 
 ## Features
